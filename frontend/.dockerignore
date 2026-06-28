@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.vite/
+.git
+.gitignore
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.md
+*.tmp

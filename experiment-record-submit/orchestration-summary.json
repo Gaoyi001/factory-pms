@@ -1,0 +1,32 @@
+{
+  "project": {
+    "name": "研发实验提交记录",
+    "operation": "create",
+    "deviceType": "desktop",
+    "operatingMode": "free-explore",
+    "designRead": "task-driven / 内部研发人员 / industrial enterprise utilitarian / high density / avoid decorative elements",
+    "designDials": {
+      "layoutVariance": 1,
+      "motionIntensity": 1,
+      "visualDensity": 4
+    }
+  },
+  "designSource": {
+    "operatingMode": "free-explore",
+    "brandCssPath": "colors_and_type.css",
+    "styleConstraints": {
+      "radiusMax": 12,
+      "staticShadowAlphaMax": 0.05
+    }
+  },
+  "pages": [
+    {
+      "nodeId": "page-experiment-record-submit",
+      "title": "研发实验提交记录",
+      "htmlSrc": "pages/experiment-record-submit.html",
+      "pageType": "task-driven",
+      "chartsRequired": false,
+      "visualNorthStar": "A clean, structured experiment record submission form within a sidebar-nav layout. Professional, data-centric, minimal decorative elements."
+    }
+  ]
+}

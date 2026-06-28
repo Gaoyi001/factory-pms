@@ -1,0 +1,37 @@
+# 版本控制
+.git
+.gitignore
+.gitattributes
+
+# 环境与敏感配置
+.env
+.env.*
+!.env.example
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# 测试与缓存
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+.mypy_cache/
+tests/
+test_*.py
+pytest.ini
+
+# 上传文件与日志
+uploads/
+*.log
+.runtime/
+
+# IDE 与系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.md
+*.tmp

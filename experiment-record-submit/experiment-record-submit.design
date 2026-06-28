@@ -1,0 +1,25 @@
+{
+  "data": [
+    {
+      "id": "page-experiment-record-submit",
+      "title": "研发实验提交记录",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1782541034000,
+      "canvasData": {
+        "x": 0,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/experiment-record-submit.html",
+        "interactions": []
+      }
+    }
+  ],
+  "config": {
+    "autoLayout": true,
+    "deviceType": "desktop",
+    "projectName": "研发实验提交记录"
+  }
+}

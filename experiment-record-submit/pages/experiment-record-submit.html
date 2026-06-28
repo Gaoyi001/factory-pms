@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>研发实验提交记录</title>
+    <style id="theme-vars">
+/* Brand CSS - 工厂研发管理系统 研发实验提交记录 */
+/* Derived from existing system style: Element Plus blue + industrial/utilitarian tone */
+
+:root {
+  /* Brand Colors */
+  --color-primary: #409EFF;
+  --color-primary-light: #66B1FF;
+  --color-primary-lighter: #C6E2FF;
+  --color-primary-lightest: #ECF5FF;
+  --color-primary-dark: #3A8EE6;
+  --color-primary-darker: #337ECC;
+
+  /* Neutral Scale */
+  --color-neutral-50: #FAFAFA;
+  --color-neutral-100: #F5F7FA;
+  --color-neutral-200: #EBEEF5;
+  --color-neutral-300: #DCDFE6;
+  --color-neutral-400: #C0C4CC;
+  --color-neutral-500: #909399;
+  --color-neutral-600: #73767A;
+  --color-neutral-700: #606266;
+  --color-neutral-800: #303133;
+  --color-neutral-900: #1D2129;
+
+  /* Semantic State Colors */
+  --state-success: #67C23A;
+  --state-success-bg: #F0F9EB;
+  --state-warning: #E6A23C;
+  --state-warning-bg: #FDF6EC;
+  --state-error: #F56C6C;
+  --state-error-bg: #FEF0F0;
+  --state-info: #909399;
+  --state-info-bg: #F4F4F5;
+
+  /* Surface & Background */
+  --bg-page: #F5F7FA;
+  --bg-card: #FFFFFF;
+  --bg-sidebar: #304156;
+  --bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --bg-sidebar-active: var(--color-primary);
+
+  /* Border */
+  --border-color: #E4E7ED;
+  --border-color-light: #EBEEF5;
+  --border-color-lighter: #F2F6FC;
+
+  /* Typography */
+  --font-family: 'PingFang SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 20px;
+  --text-3xl: 28px;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.75;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+  --spacing-3xl: 32px;
+  --spacing-4xl: 48px;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-float: 0 6px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* Typography Classes */
+.font-display { font-family: var(--font-family); }
+.font-body { font-family: var(--font-family); }
+.font-mono { font-family: var(--font-mono); }
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-primary: var(--color-primary);
+  }
+  @layer base {
+    body { background: var(--bg-page); color: var(--color-neutral-800); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main class="flex min-h-screen">
+    <!-- Sidebar -->
+    <aside class="hidden lg:flex flex-col w-[210px] min-h-screen" style="background:var(--bg-sidebar); flex-shrink:0;">
+      <!-- Logo -->
+      <div class="flex items-center gap-2 px-4 h-14 border-b" style="border-color:rgba(255,255,255,0.1);">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white opacity-80"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span class="text-white text-sm font-semibold truncate">工厂研发管理系统</span>
+      </div>
+      <!-- Nav -->
+      <nav class="flex-1 overflow-y-auto py-2 no-scrollbar">
+        <!-- 主导航 -->
+        <p class="px-4 pt-4 pb-1 text-xs font-medium uppercase tracking-wider" style="color:rgba(255,255,255,0.35);">主导航</p>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm mx-1 mb-0.5" style="color:rgba(255,255,255,0.7);" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span class="truncate">首页看板</span>
+        </a>
+        <!-- 核心模块 -->
+        <p class="px-4 pt-5 pb-1 text-xs font-medium uppercase tracking-wider" style="color:rgba(255,255,255,0.35);">核心模块</p>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm mx-1 mb-0.5" style="color:rgba(255,255,255,0.7);" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span class="truncate">项目管理</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm mx-1 mb-0.5 text-white" style="background:var(--bg-sidebar-active);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
+          <span class="truncate font-medium">研发实验</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm mx-1 mb-0.5" style="color:rgba(255,255,255,0.7);" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <span class="truncate">物料BOM</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm mx-1 mb-0.5" style="color:rgba(255,255,255,0.7);" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v6l-2 2H4v2h8V2h2v8h8v-2h-4l-2-2V2"/><rect x="2" y="14" width="20" height="6" rx="1"/><path d="M6 20v2"/><path d="M18 20v2"/></svg>
+          <span class="truncate">样品试产</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm mx-1 mb-0.5" style="color:rgba(255,255,255,0.7);" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span class="truncate">文档知识</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm mx-1 mb-0.5" style="color:rgba(255,255,255,0.7);" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span class="truncate">库存管理</span>
+        </a>
+        <!-- 系统管理 -->
+        <p class="px-4 pt-5 pb-1 text-xs font-medium uppercase tracking-wider" style="color:rgba(255,255,255,0.35);">系统管理</p>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm mx-1 mb-0.5" style="color:rgba(255,255,255,0.7);" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span class="truncate">账号管理</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm mx-1 mb-0.5" style="color:rgba(255,255,255,0.7);" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          <span class="truncate">部门管理</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm mx-1 mb-0.5" style="color:rgba(255,255,255,0.7);" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="truncate">角色权限</span>
+        </a>
+        <a href="#" class="flex items-center gap-3 px-4 py-2.5 text-sm rounded-sm mx-1 mb-0.5" style="color:rgba(255,255,255,0.7);" onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span class="truncate">操作日志</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Right Area -->
+    <div class="flex flex-col flex-1 min-w-0">
+      <!-- Top Bar -->
+      <header class="flex items-center justify-between h-14 px-5 border-b" style="background:var(--bg-card); border-color:var(--border-color);">
+        <div class="flex items-center gap-2">
+          <!-- Mobile menu toggle -->
+          <button class="lg:hidden flex items-center justify-center w-8 h-8 rounded-sm" style="color:var(--color-neutral-700);" aria-label="菜单">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <h1 class="text-base font-semibold truncate" style="color:var(--color-neutral-800);">研发实验提交记录</h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-sm truncate hidden sm:inline" style="color:var(--color-neutral-600);">管理员</span>
+          <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white shrink-0" style="background:var(--color-primary);">管</div>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <div class="flex-1 overflow-y-auto p-5 lg:p-5 xl:px-6" style="background:var(--bg-page);">
+        <!-- A. Experiment Info Header Card -->
+        <section class="rounded-md border mb-5" style="background:var(--bg-card); border-color:var(--border-color);">
+          <div class="p-4 lg:p-5">
+            <div class="flex flex-wrap items-start gap-x-6 gap-y-3">
+              <!-- Left: Experiment info -->
+              <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                  <span class="text-xs px-2 py-0.5 rounded-sm whitespace-nowrap font-mono" style="background:var(--color-neutral-100); color:var(--color-neutral-600);">EXP20260625100832</span>
+                  <span class="text-xs px-2 py-0.5 rounded-sm whitespace-nowrap" style="background:var(--state-warning-bg); color:var(--state-warning);">可靠性测试</span>
+                  <span class="text-xs px-2 py-0.5 rounded-sm whitespace-nowrap" style="background:var(--color-primary-lightest); color:var(--color-primary);">进行中</span>
+                </div>
+                <h2 class="text-base font-semibold mb-3 truncate" style="color:var(--color-neutral-800); text-wrap:balance;">HoJLR2512-3W-24mR-1% 可靠性测试</h2>
+                <div class="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm" style="color:var(--color-neutral-600);">
+                  <span class="flex items-center gap-1 whitespace-nowrap">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    设计人: <span class="font-medium" style="color:var(--color-neutral-800);">张工</span>
+                  </span>
+                  <span class="flex items-center gap-1 whitespace-nowrap">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                    执行人: <span class="font-medium" style="color:var(--color-neutral-800);">李工</span>
+                  </span>
+                  <span class="flex items-center gap-1 whitespace-nowrap">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    计划周期: <span class="font-medium" style="color:var(--color-neutral-800);">2026-06-20 至 2026-06-30</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- B. Records Table Card -->
+        <section class="rounded-md border mb-5" style="background:var(--bg-card); border-color:var(--border-color);">
+          <div class="flex items-center justify-between p-4 lg:p-5 pb-0 lg:pb-0">
+            <div class="flex items-center gap-3">
+              <h3 class="text-sm font-semibold" style="color:var(--color-neutral-800);">实验记录</h3>
+              <span class="text-xs px-2 py-0.5 rounded-sm whitespace-nowrap" style="background:var(--color-neutral-100); color:var(--color-neutral-500);">共 3 条记录</span>
+            </div>
+            <button class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-sm text-white shrink-0" style="background:var(--color-primary);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              新增记录
+            </button>
+          </div>
+          <div class="p-4 lg:p-5 pt-3 lg:pt-3 overflow-x-auto">
+            <table class="w-full text-sm" style="min-width:900px;">
+              <thead>
+                <tr class="text-left text-xs font-medium" style="color:var(--color-neutral-500); background:var(--bg-page);">
+                  <th class="px-3 py-2.5 whitespace-nowrap" style="min-width:130px;">批次号</th>
+                  <th class="px-3 py-2.5 whitespace-nowrap" style="min-width:90px;">样品编号</th>
+                  <th class="px-3 py-2.5 whitespace-nowrap" style="min-width:70px;">执行人</th>
+                  <th class="px-3 py-2.5 whitespace-nowrap" style="min-width:100px;">执行日期</th>
+                  <th class="px-3 py-2.5 whitespace-nowrap" style="min-width:200px;">结果摘要</th>
+                  <th class="px-3 py-2.5 whitespace-nowrap" style="min-width:90px;">结论</th>
+                  <th class="px-3 py-2.5 whitespace-nowrap" style="min-width:80px;">SPC Cpk</th>
+                  <th class="px-3 py-2.5 whitespace-nowrap" style="min-width:60px;">异常</th>
+                  <th class="px-3 py-2.5 whitespace-nowrap" style="min-width:60px;">附件</th>
+                  <th class="px-3 py-2.5 whitespace-nowrap" style="min-width:120px;">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Row 1 -->
+                <tr class="border-b" style="border-color:var(--border-color-light);">
+                  <td class="px-3 py-3 whitespace-nowrap font-mono text-xs" style="color:var(--color-neutral-700);">B20260620-001</td>
+                  <td class="px-3 py-3 whitespace-nowrap font-mono text-xs" style="color:var(--color-neutral-700);">SP-0042</td>
+                  <td class="px-3 py-3 whitespace-nowrap" style="color:var(--color-neutral-800);">李工</td>
+                  <td class="px-3 py-3 whitespace-nowrap" style="color:var(--color-neutral-600);">2026-06-20</td>
+                  <td class="px-3 py-3 truncate" style="color:var(--color-neutral-600); max-width:280px;" title="常温条件下各项参数正常，拉力测试结果在公差范围内">常温条件下各项参数正常，拉力测试结果在公差范围内</td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    <span class="inline-flex items-center h-6 px-2 rounded-sm text-xs font-medium whitespace-nowrap" style="background:var(--state-success-bg); color:var(--state-success);">通过</span>
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    <span class="font-mono text-xs font-semibold" style="color:var(--state-success);">1.67</span>
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap" style="color:var(--color-neutral-400);">--</td>
+                  <td class="px-3 py-3 whitespace-nowrap text-center" style="color:var(--color-primary);">
+                    <span class="inline-flex items-center gap-1">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                      <span class="text-xs">2</span>
+                    </span>
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    <div class="flex items-center gap-2">
+                      <button class="text-xs px-2 py-1 rounded-sm whitespace-nowrap" style="color:var(--color-primary);" title="编辑">编辑</button>
+                      <button class="text-xs px-2 py-1 rounded-sm whitespace-nowrap" style="color:var(--color-primary);" title="附件">附件</button>
+                      <button class="text-xs px-2 py-1 rounded-sm whitespace-nowrap" style="color:var(--state-error);" title="删除">删除</button>
+                    </div>
+                  </td>
+                </tr>
+                <!-- Row 2 (striped) -->
+                <tr class="border-b" style="border-color:var(--border-color-light); background:var(--color-neutral-50);">
+                  <td class="px-3 py-3 whitespace-nowrap font-mono text-xs" style="color:var(--color-neutral-700);">B20260621-001</td>
+                  <td class="px-3 py-3 whitespace-nowrap font-mono text-xs" style="color:var(--color-neutral-700);">SP-0043</td>
+                  <td class="px-3 py-3 whitespace-nowrap" style="color:var(--color-neutral-800);">王工</td>
+                  <td class="px-3 py-3 whitespace-nowrap" style="color:var(--color-neutral-600);">2026-06-21</td>
+                  <td class="px-3 py-3 truncate" style="color:var(--color-neutral-600); max-width:280px;" title="高温老化后电阻略有偏高，但仍在合格范围内">高温老化后电阻略有偏高，但仍在合格范围内</td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    <span class="inline-flex items-center h-6 px-2 rounded-sm text-xs font-medium whitespace-nowrap" style="background:var(--state-warning-bg); color:var(--state-warning);">有条件通过</span>
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    <span class="font-mono text-xs font-semibold" style="color:var(--state-warning);">1.21</span>
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap" style="color:var(--color-neutral-400);">--</td>
+                  <td class="px-3 py-3 whitespace-nowrap text-center" style="color:var(--color-primary);">
+                    <span class="inline-flex items-center gap-1">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                      <span class="text-xs">1</span>
+                    </span>
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    <div class="flex items-center gap-2">
+                      <button class="text-xs px-2 py-1 rounded-sm whitespace-nowrap" style="color:var(--color-primary);" title="编辑">编辑</button>
+                      <button class="text-xs px-2 py-1 rounded-sm whitespace-nowrap" style="color:var(--color-primary);" title="附件">附件</button>
+                      <button class="text-xs px-2 py-1 rounded-sm whitespace-nowrap" style="color:var(--state-error);" title="删除">删除</button>
+                    </div>
+                  </td>
+                </tr>
+                <!-- Row 3 -->
+                <tr class="border-b" style="border-color:var(--border-color-light);">
+                  <td class="px-3 py-3 whitespace-nowrap font-mono text-xs" style="color:var(--color-neutral-700);">B20260622-001</td>
+                  <td class="px-3 py-3 whitespace-nowrap font-mono text-xs" style="color:var(--color-neutral-700);">SP-0044</td>
+                  <td class="px-3 py-3 whitespace-nowrap" style="color:var(--color-neutral-800);">李工</td>
+                  <td class="px-3 py-3 whitespace-nowrap" style="color:var(--color-neutral-600);">2026-06-22</td>
+                  <td class="px-3 py-3 truncate" style="color:var(--color-neutral-600); max-width:280px;" title="第5小时出现温度异常波动，样品表面变色">第5小时出现温度异常波动，样品表面变色</td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    <span class="inline-flex items-center h-6 px-2 rounded-sm text-xs font-medium whitespace-nowrap" style="background:var(--state-warning-bg); color:var(--state-warning);">需复测</span>
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    <span class="font-mono text-xs font-semibold" style="color:var(--state-error);">0.89</span>
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    <span class="inline-flex items-center h-6 px-2 rounded-sm text-xs font-medium whitespace-nowrap" style="background:var(--state-error-bg); color:var(--state-error);">异常</span>
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap text-center" style="color:var(--color-primary);">
+                    <span class="inline-flex items-center gap-1">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                      <span class="text-xs">3</span>
+                    </span>
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    <div class="flex items-center gap-2">
+                      <button class="text-xs px-2 py-1 rounded-sm whitespace-nowrap" style="color:var(--color-primary);" title="编辑">编辑</button>
+                      <button class="text-xs px-2 py-1 rounded-sm whitespace-nowrap" style="color:var(--color-primary);" title="附件">附件</button>
+                      <button class="text-xs px-2 py-1 rounded-sm whitespace-nowrap" style="color:var(--state-error);" title="删除">删除</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- C. SPC Statistics Summary Card -->
+        <section class="rounded-md border" style="background:var(--bg-card); border-color:var(--border-color);">
+          <div class="p-4 lg:p-5">
+            <h3 class="text-sm font-semibold mb-4" style="color:var(--color-neutral-800);">SPC 统计概览</h3>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <!-- Left: Key metrics grid -->
+              <div class="grid grid-cols-3 gap-3" style="min-width:0;">
+                <!-- 记录总数 -->
+                <div class="rounded-sm border p-3 text-center" style="border-color:var(--border-color-light); background:var(--color-neutral-50);">
+                  <p class="text-xs mb-1 whitespace-nowrap" style="color:var(--color-neutral-500);">记录总数</p>
+                  <p class="text-xl font-bold whitespace-nowrap" style="color:var(--color-neutral-800);">3</p>
+                </div>
+                <!-- 通过 -->
+                <div class="rounded-sm border p-3 text-center" style="border-color:var(--border-color-light); background:var(--color-neutral-50);">
+                  <p class="text-xs mb-1 whitespace-nowrap" style="color:var(--color-neutral-500);">通过</p>
+                  <p class="text-xl font-bold whitespace-nowrap" style="color:var(--state-success);">1</p>
+                </div>
+                <!-- 有条件通过 -->
+                <div class="rounded-sm border p-3 text-center" style="border-color:var(--border-color-light); background:var(--color-neutral-50);">
+                  <p class="text-xs mb-1 whitespace-nowrap" style="color:var(--color-neutral-500);">有条件通过</p>
+                  <p class="text-xl font-bold whitespace-nowrap" style="color:var(--state-warning);">1</p>
+                </div>
+                <!-- 需复测 -->
+                <div class="rounded-sm border p-3 text-center" style="border-color:var(--border-color-light); background:var(--color-neutral-50);">
+                  <p class="text-xs mb-1 whitespace-nowrap" style="color:var(--color-neutral-500);">需复测</p>
+                  <p class="text-xl font-bold whitespace-nowrap" style="color:var(--state-warning);">1</p>
+                </div>
+                <!-- 失败 -->
+                <div class="rounded-sm border p-3 text-center" style="border-color:var(--border-color-light); background:var(--color-neutral-50);">
+                  <p class="text-xs mb-1 whitespace-nowrap" style="color:var(--color-neutral-500);">失败</p>
+                  <p class="text-xl font-bold whitespace-nowrap" style="color:var(--color-neutral-800);">0</p>
+                </div>
+                <!-- 异常数 -->
+                <div class="rounded-sm border p-3 text-center" style="border-color:var(--border-color-light); background:var(--color-neutral-50);">
+                  <p class="text-xs mb-1 whitespace-nowrap" style="color:var(--color-neutral-500);">异常数</p>
+                  <p class="text-xl font-bold whitespace-nowrap" style="color:var(--state-error);">1</p>
+                </div>
+                <!-- 通过率 -->
+                <div class="rounded-sm border p-3 text-center" style="border-color:var(--border-color-light); background:var(--color-neutral-50);">
+                  <p class="text-xs mb-1 whitespace-nowrap" style="color:var(--color-neutral-500);">通过率</p>
+                  <p class="text-xl font-bold whitespace-nowrap" style="color:var(--state-warning);">66.67%</p>
+                </div>
+                <!-- 平均 Cpk -->
+                <div class="rounded-sm border p-3 text-center" style="border-color:var(--border-color-light); background:var(--color-neutral-50);">
+                  <p class="text-xs mb-1 whitespace-nowrap" style="color:var(--color-neutral-500);">平均 Cpk</p>
+                  <p class="text-xl font-bold whitespace-nowrap" style="color:var(--state-warning);">1.26</p>
+                </div>
+                <!-- Cpk 范围 -->
+                <div class="rounded-sm border p-3 text-center" style="border-color:var(--border-color-light); background:var(--color-neutral-50);">
+                  <p class="text-xs mb-1 whitespace-nowrap" style="color:var(--color-neutral-500);">Cpk 范围</p>
+                  <p class="text-sm font-bold whitespace-nowrap" style="color:var(--color-neutral-800);">0.89 ~ 1.67</p>
+                </div>
+              </div>
+
+              <!-- Right: Cpk bar chart -->
+              <div class="rounded-sm border p-4" style="border-color:var(--border-color-light); background:var(--color-neutral-50); min-width:0;">
+                <p class="text-xs font-medium mb-4 whitespace-nowrap" style="color:var(--color-neutral-600);">各批次 Cpk 值</p>
+                <div class="relative" style="padding-top:8px;">
+                  <!-- Chart area -->
+                  <div class="flex items-end gap-3" style="height:140px;">
+                    <!-- Bar 1: 1.67 green -->
+                    <div class="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+                      <span class="text-xs font-mono font-semibold whitespace-nowrap" style="color:var(--state-success);">1.67</span>
+                      <div class="w-full rounded-sm" style="height:117px; background:var(--state-success);"></div>
+                      <span class="text-xs truncate w-full text-center" style="color:var(--color-neutral-600);">B20260620</span>
+                    </div>
+                    <!-- Bar 2: 1.21 yellow -->
+                    <div class="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+                      <span class="text-xs font-mono font-semibold whitespace-nowrap" style="color:var(--state-warning);">1.21</span>
+                      <div class="w-full rounded-sm" style="height:85px; background:var(--state-warning);"></div>
+                      <span class="text-xs truncate w-full text-center" style="color:var(--color-neutral-600);">B20260621</span>
+                    </div>
+                    <!-- Bar 3: 0.89 red -->
+                    <div class="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+                      <span class="text-xs font-mono font-semibold whitespace-nowrap" style="color:var(--state-error);">0.89</span>
+                      <div class="w-full rounded-sm" style="height:62px; background:var(--state-error);"></div>
+                      <span class="text-xs truncate w-full text-center" style="color:var(--color-neutral-600);">B20260622</span>
+                    </div>
+                  </div>
+                  <!-- Threshold line at 1.33 -->
+                  <div class="absolute left-0 right-0" style="top:32px; border-top:2px dashed var(--color-neutral-400);">
+                    <span class="absolute right-0 -top-4 text-xs whitespace-nowrap" style="color:var(--color-neutral-500);">目标 Cpk >= 1.33</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
