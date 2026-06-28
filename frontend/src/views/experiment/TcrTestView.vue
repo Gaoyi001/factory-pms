@@ -202,6 +202,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Refresh, Check } from '@element-plus/icons-vue'
 import { experimentApi, userApi } from '@/api'
 import { CONCLUSION_OPTS } from '@/types/experiment'
+import { useAutoSave } from '@/composables/useAutoSave'
 
 const route = useRoute()
 const router = useRouter()
@@ -343,6 +344,11 @@ let echartsModule: any = null
 const initChart = async () => {
   if (!chartRef.value) return
   if (!echartsModule) echartsModule = await import('echarts')
+  // 先清理旧实例防止内存泄漏
+  if (chartInstance.value) {
+    chartInstance.value.dispose()
+    chartInstance.value = null
+  }
   chartInstance.value = echartsModule.init(chartRef.value)
   renderChart()
 }
@@ -473,6 +479,7 @@ const handleSubmit = async () => {
       experiment_id: experimentId,
     }
     await experimentApi.createRecord(payload)
+    clearDraft()
     ElMessage.success('温漂测试记录已提交')
     router.push('/experiments')
   } catch (e: any) {
@@ -494,9 +501,26 @@ const handleCancel = async () => {
   goBack()
 }
 
+// ===== 自动保存草稿 =====
+const draftKey = `tcr_${experimentId}`
+const draftData = computed(() => ({
+  form: { ...form },
+  tempConfig: { ...tempConfig },
+  points: points.value,
+}))
+const { restore: restoreDraft, clear: clearDraft } = useAutoSave(draftKey, draftData, 2000)
+
 onMounted(async () => {
   await loadExperiment()
   await loadUsers()
+  // 恢复草稿
+  const draft = restoreDraft()
+  if (draft) {
+    if (draft.form) Object.assign(form, draft.form)
+    if (draft.tempConfig) Object.assign(tempConfig, draft.tempConfig)
+    if (draft.points) points.value = draft.points
+    ElMessage.info('已恢复未提交的草稿数据')
+  }
   await nextTick()
   await initChart()
   window.addEventListener('resize', handleResize)

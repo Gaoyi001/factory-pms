@@ -2,12 +2,14 @@
 import os
 import io
 import datetime
+import hashlib
 from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
+from werkzeug.utils import secure_filename
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_permission
@@ -32,6 +34,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024  # 50MB
 MAX_ATTACHMENTS_PER_RECORD = 20
+MAX_EXPORT_RECORDS = 10000  # 单次导出上限
 # 允许的附件扩展名白名单（小写）
 ALLOWED_EXTENSIONS = {
     ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp",
@@ -40,8 +43,54 @@ ALLOWED_EXTENSIONS = {
     ".zip", ".rar", ".7z",
 }
 
+# 参数模板 JSON Schema 校验
+PARAM_TEMPLATE_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+            "name": {"type": "string", "maxLength": 50},
+            "unit": {"type": "string", "maxLength": 20},
+            "default": {"type": "number"},
+            "min": {"type": "number"},
+            "max": {"type": "number"},
+        }
+    }
+}
+
+# 实验类型简称映射
+TYPE_ABBR = {
+    "performance": "PERF", "reliability": "RELI", "environment": "ENV",
+    "material": "MATL", "process": "PROC", "other": "OTHR",
+}
+
 
 # ===== 工具函数 =====
+def _generate_experiment_code(db: Session, exp_type: str) -> str:
+    """生成实验编码: EXP-{TYPE}-{YYYYMM}-{SEQ:04d}"""
+    now = datetime.datetime.now()
+    prefix = f"EXP-{TYPE_ABBR.get(exp_type, 'OTHR')}-{now.strftime('%Y%m')}-"
+    # 查询当月同类型实验数
+    count = db.query(Experiment).filter(
+        Experiment.code.like(f"{prefix}%")
+    ).count()
+    return f"{prefix}{count + 1:04d}"
+
+
+def _validate_param_template(template: list) -> None:
+    """校验参数模板符合 JSON Schema"""
+    import json
+    try:
+        import jsonschema
+        jsonschema.validate(instance=template, schema=PARAM_TEMPLATE_SCHEMA)
+    except ImportError:
+        # jsonschema 未安装时跳过校验
+        pass
+    except jsonschema.ValidationError as e:
+        raise HTTPException(400, f"参数模板格式错误: {e.message}")
+
+
 def _validate_user(db: Session, user_id: Optional[int], field_name: str):
     """校验用户存在性"""
     if user_id is None:
@@ -180,7 +229,11 @@ def create_experiment(data: ExperimentCreate, db: Session = Depends(get_db), cur
     _validate_user(db, designer_id, "designer_id")
     _validate_user(db, data.executor_id, "executor_id")
 
-    code = f"EXP{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+    # 校验参数模板
+    if data.param_template:
+        _validate_param_template([p.model_dump() for p in data.param_template])
+
+    code = _generate_experiment_code(db, data.exp_type)
     exp = Experiment(
         code=code, project_id=data.project_id, name=data.name,
         description=data.description, exp_type=data.exp_type,
@@ -348,9 +401,14 @@ def create_record(data: ExperimentRecordCreate, db: Session = Depends(get_db), c
     executor_id = data.executor_id or current.id
     _validate_user(db, executor_id, "executor_id")
 
+    # 自动提取 test_type
+    pv = data.param_values or {}
+    test_type = pv.get("test_type", "normal") if isinstance(pv, dict) else "normal"
+
     rec = ExperimentRecord(
         experiment_id=data.experiment_id, batch_no=data.batch_no,
         sample_code=data.sample_code, executor_id=executor_id,
+        test_type=test_type,
         param_values=data.param_values, result_data=data.result_data,
         result_summary=data.result_summary, conclusion=data.conclusion,
         is_abnormal=data.is_abnormal,
@@ -374,6 +432,10 @@ def update_record(record_id: int, data: ExperimentRecordUpdate, db: Session = De
         _validate_user(db, update_data["executor_id"], "executor_id")
     for field, value in update_data.items():
         setattr(rec, field, value)
+    # 自动更新 test_type
+    pv = rec.param_values or {}
+    if isinstance(pv, dict):
+        rec.test_type = pv.get("test_type", rec.test_type or "normal")
     db.commit()
     db.refresh(rec)
     # 自动维护实验的 actual_start/actual_end
@@ -406,18 +468,26 @@ def delete_record(record_id: int, db: Session = Depends(get_db), current: User =
 
 @router.post("/records/batch-delete", response_model=ResponseBase)
 def batch_delete_records(data: BatchDeleteRecords, db: Session = Depends(get_db), current: User = Depends(require_permission("experiment", "delete"))):
-    """批量删除实验记录（先提交事务再清理物理文件）"""
+    """批量删除实验记录（事务保护 + 先提交事务再清理物理文件）"""
     if not data.ids:
         raise HTTPException(400, "请选择要删除的记录")
     recs = db.query(ExperimentRecord).filter(ExperimentRecord.id.in_(data.ids)).all()
-    experiment_ids = set()
-    att_paths: list[str] = []
-    for rec in recs:
-        _check_experiment_access(rec.experiment, current)
-        experiment_ids.add(rec.experiment_id)
-        att_paths.extend(att.file_path for att in rec.attachments if att.file_path)
-        db.delete(rec)
-    db.commit()
+    if len(recs) != len(data.ids):
+        found_ids = {r.id for r in recs}
+        missing = [i for i in data.ids if i not in found_ids]
+        raise HTTPException(400, f"以下记录不存在: {missing}")
+    try:
+        experiment_ids = set()
+        att_paths: list[str] = []
+        for rec in recs:
+            _check_experiment_access(rec.experiment, current)
+            experiment_ids.add(rec.experiment_id)
+            att_paths.extend(att.file_path for att in rec.attachments if att.file_path)
+            db.delete(rec)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     # 事务成功后清理物理文件
     for path in att_paths:
         try:
@@ -438,8 +508,13 @@ def export_records(
     db: Session = Depends(get_db),
     current: User = Depends(get_current_user),
 ):
-    """导出实验记录为 Excel（含温漂/温升采样数据）"""
+    """导出实验记录为 Excel（含温漂/温升采样数据），上限 {MAX_EXPORT_RECORDS} 条"""
     _get_experiment_or_404(db, experiment_id, current)
+    total = db.query(func.count(ExperimentRecord.id)).filter(
+        ExperimentRecord.experiment_id == experiment_id
+    ).scalar()
+    if total > MAX_EXPORT_RECORDS:
+        raise HTTPException(400, f"记录数（{total}）超过单次导出上限（{MAX_EXPORT_RECORDS}），请使用筛选分批导出")
     records = db.query(ExperimentRecord).filter(
         ExperimentRecord.experiment_id == experiment_id
     ).order_by(ExperimentRecord.id.desc()).all()
@@ -587,15 +662,21 @@ async def upload_attachment(
     if len(contents) > MAX_ATTACHMENT_SIZE:
         raise HTTPException(400, f"附件大小超过限制（最大 {MAX_ATTACHMENT_SIZE // 1024 // 1024}MB）")
 
-    safe_name = os.path.basename(file.filename or "attachment")
+    safe_name = secure_filename(file.filename or "attachment")
+    if not safe_name:
+        raise HTTPException(400, "文件名不合法")
     saved_name = f"REC{record_id}_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}_{safe_name}"
-    file_path = os.path.join(UPLOAD_DIR, saved_name)
+    file_path = os.path.realpath(os.path.join(UPLOAD_DIR, saved_name))
+    upload_dir_real = os.path.realpath(UPLOAD_DIR)
+    if not file_path.startswith(upload_dir_real + os.sep):
+        raise HTTPException(400, "非法的文件路径")
     with open(file_path, "wb") as f:
         f.write(contents)
 
     att = ExperimentAttachment(
         record_id=record_id, file_name=safe_name,
         file_path=file_path, file_size=len(contents),
+        file_hash=hashlib.sha256(contents).hexdigest(),
     )
     db.add(att)
     db.commit()

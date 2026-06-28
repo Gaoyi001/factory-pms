@@ -1,5 +1,9 @@
 import request from '@/utils/request'
 import type { LoginParams } from '@/types/user'
+import type {
+  ExperimentOut, ExperimentAttachmentOut, ExperimentRecordOut,
+  ExperimentStatus,
+} from '@/types/experiment'
 
 export const authApi = {
   login: (data: LoginParams) => request.post('/auth/login', data),
@@ -40,22 +44,44 @@ export const projectApi = {
 }
 
 // ===== 实验 API =====
+export interface ExperimentListParams {
+  page?: number; page_size?: number; project_id?: number
+  status?: ExperimentStatus; exp_type?: string; keyword?: string
+  date_from?: string; date_to?: string
+}
+export interface RecordListParams {
+  page?: number; page_size?: number; batch_no?: string
+  sample_code?: string; conclusion?: string; is_abnormal?: boolean
+  date_from?: string; date_to?: string
+}
+
 export const experimentApi = {
-  list: (params: any) => request.get('/experiments/list', { params }),
-  create: (data: any) => request.post('/experiments/create', data),
-  get: (id: number) => request.get(`/experiments/${id}`),
-  update: (id: number, data: any) => request.put(`/experiments/${id}`, data),
-  remove: (id: number) => request.delete(`/experiments/${id}`),
+  list: (params: ExperimentListParams) =>
+    request.get('/experiments/list', { params }),
+  create: (data: Record<string, unknown>) =>
+    request.post('/experiments/create', data),
+  get: (id: number): Promise<ExperimentOut> =>
+    request.get(`/experiments/${id}`).then(r => r.data),
+  update: (id: number, data: Record<string, unknown>) =>
+    request.put(`/experiments/${id}`, data),
+  remove: (id: number) =>
+    request.delete(`/experiments/${id}`),
   // 状态流转：start | complete | cancel
   changeStatus: (id: number, action: 'start' | 'complete' | 'cancel') =>
     request.post(`/experiments/${id}/status`, { action }),
   // 实验记录（支持分页与筛选参数）
-  getRecords: (expId: number, params?: any) => request.get(`/experiments/${expId}/records`, { params }),
-  getRecord: (recordId: number) => request.get(`/experiments/records/${recordId}`),
-  createRecord: (data: any) => request.post('/experiments/records', data),
-  updateRecord: (id: number, data: any) => request.put(`/experiments/records/${id}`, data),
-  deleteRecord: (id: number) => request.delete(`/experiments/records/${id}`),
-  batchDeleteRecords: (ids: number[]) => request.post('/experiments/records/batch-delete', { ids }),
+  getRecords: (expId: number, params?: RecordListParams) =>
+    request.get(`/experiments/${expId}/records`, { params }),
+  getRecord: (recordId: number): Promise<ExperimentRecordOut> =>
+    request.get(`/experiments/records/${recordId}`).then(r => r.data),
+  createRecord: (data: Record<string, unknown>) =>
+    request.post('/experiments/records', data),
+  updateRecord: (id: number, data: Record<string, unknown>) =>
+    request.put(`/experiments/records/${id}`, data),
+  deleteRecord: (id: number) =>
+    request.delete(`/experiments/records/${id}`),
+  batchDeleteRecords: (ids: number[]) =>
+    request.post('/experiments/records/batch-delete', { ids }),
   // 导出实验记录 Excel
   exportRecords: (expId: number) => {
     const token = localStorage.getItem('token')

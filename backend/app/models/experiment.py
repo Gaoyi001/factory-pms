@@ -50,6 +50,10 @@ class ExperimentRecord(Base):
     sample_code = Column(String(50), nullable=True)  # 样品编号
     executor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
+    # 测试类型标记（便于筛选和统计）
+    test_type = Column(String(32), nullable=True, index=True)
+    # tcr / temp_rise / aecq200 / custom / normal
+
     # 实验参数值（JSON 存储）
     param_values = Column(JSON, nullable=True)
     # 示例: {"温度": 185, "压力": 12.5, "时间": 30}
@@ -83,6 +87,7 @@ class ExperimentAttachment(Base):
     file_name = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
     file_size = Column(Integer, default=0)
+    file_hash = Column(String(64), nullable=True, index=True)  # SHA-256 哈希，用于去重
     uploaded_at = Column(DateTime, default=datetime.utcnow)
 
     record = relationship("ExperimentRecord", back_populates="attachments")

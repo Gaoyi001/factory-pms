@@ -18,7 +18,7 @@ export const PROJECT_PRIORITY = {
 /** 实验状态映射 */
 export const EXPERIMENT_STATUS = {
   draft: { tag: 'info' as const, label: '草稿' },
-  active: { tag: 'primary' as const, label: '进行中' },
+  in_progress: { tag: 'primary' as const, label: '进行中' },
   completed: { tag: 'success' as const, label: '已完成' },
   cancelled: { tag: 'danger' as const, label: '已取消' },
 } as const
