@@ -228,10 +228,10 @@ switch ($Action) {
         Write-Host "  Default: admin / admin123" -ForegroundColor Yellow
         Write-Host ""
         Write-Host "Press any key to check status..." -ForegroundColor Gray
-        $null = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        while ($true) { $key = [Console]::ReadKey($true); if ($key.KeyChar -ne 0) { break } }
         Show-Status
         Write-Host "Press any key to close..." -ForegroundColor Gray
-        $null = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        while ($true) { $key = [Console]::ReadKey($true); if ($key.KeyChar -ne 0) { break } }
     }
     default {
         Write-Err "未知操作: $Action"

@@ -498,7 +498,7 @@ function Invoke-Menu {
 
         Write-Host ""
         Write-Host "  按任意键继续..." -ForegroundColor Gray
-        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        while ($true) { $key = [Console]::ReadKey($true); if ($key.KeyChar -ne 0) { break } }
     }
 }
 
