@@ -20,16 +20,25 @@ function Write-OK   { param($msg) Write-Host "    [OK] $msg" -ForegroundColor Gr
 function Write-Warn { param($msg) Write-Host "    [!] $msg" -ForegroundColor Yellow }
 function Write-Err  { param($msg) Write-Host "    [X] $msg" -ForegroundColor Red }
 
-# ==== Find Python ====
+# ==== Find Python (优先使用项目虚拟环境) ====
 $PythonExe = $null
-$wbPython = Join-Path $env:USERPROFILE ".workbuddy\binaries\python\versions"
-if (Test-Path $wbPython) {
-    $versions = Get-ChildItem $wbPython -Directory | Sort-Object Name -Descending
-    foreach ($v in $versions) {
-        $candidate = Join-Path $v.FullName "python.exe"
-        if (Test-Path $candidate) { $PythonExe = $candidate; break }
+# 1) 优先: 项目内 venv
+$projectVenv = Join-Path $BackendDir ".venv\Scripts\python.exe"
+if (Test-Path $projectVenv) {
+    $PythonExe = $projectVenv
+}
+# 2) 备选: WorkBuddy 管理版本
+if (-not $PythonExe) {
+    $wbPython = Join-Path $env:USERPROFILE ".workbuddy\binaries\python\versions"
+    if (Test-Path $wbPython) {
+        $versions = Get-ChildItem $wbPython -Directory | Sort-Object Name -Descending
+        foreach ($v in $versions) {
+            $candidate = Join-Path $v.FullName "python.exe"
+            if (Test-Path $candidate) { $PythonExe = $candidate; break }
+        }
     }
 }
+# 3) 最后: 系统 Python
 if (-not $PythonExe) {
     $sysPy = @("C:\Python\Python313\python.exe","C:\Python\Python312\python.exe","C:\Python\Python311\python.exe","python","python3")
     foreach ($c in $sysPy) {

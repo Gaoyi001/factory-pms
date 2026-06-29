@@ -9,7 +9,17 @@ from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
-from werkzeug.utils import secure_filename
+import re as _re
+
+def secure_filename(filename: str) -> str:
+    """简易安全文件名清洗（替代 werkzeug.utils.secure_filename）"""
+    # 取basename，去除路径遍历
+    filename = os.path.basename(filename)
+    # 只保留字母、数字、下划线、连字符、点
+    filename = _re.sub(r"[^\w\.\-]", "_", filename)
+    # 去除开头的点（隐藏文件）
+    filename = filename.lstrip(".")
+    return filename or "attachment"
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_permission

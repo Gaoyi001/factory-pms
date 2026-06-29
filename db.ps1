@@ -36,13 +36,28 @@ $BackendDir = Join-Path $ScriptDir "backend"
 $DbFile = Join-Path $BackendDir "factory_pms.db"
 $BackupDir = Join-Path $ScriptDir ".db-backups"
 
-$PythonExe = Join-Path $env:USERPROFILE ".workbuddy\binaries\python\versions\3.13.12\python.exe"
-if (-not (Test-Path $PythonExe)) {
-    $PythonExe = "python"
-}
+# 优先使用项目虚拟环境，其次 WorkBuddy 管理版本
+$VenvPython = Join-Path $BackendDir ".venv\Scripts\python.exe"
+$VenvAlembic = Join-Path $BackendDir ".venv\Scripts\alembic.exe"
+$MbPython = Join-Path $env:USERPROFILE ".workbuddy\binaries\python\versions\3.13.12\python.exe"
+$MbAlembic = Join-Path $env:USERPROFILE ".workbuddy\binaries\python\versions\3.13.12\Scripts\alembic.exe"
 
-$AlembicExe = Join-Path $env:USERPROFILE ".workbuddy\binaries\python\versions\3.13.12\Scripts\alembic.exe"
-if (-not (Test-Path $AlembicExe)) {
+if (Test-Path $VenvPython) {
+    $PythonExe = $VenvPython
+    if (Test-Path $VenvAlembic) {
+        $AlembicExe = $VenvAlembic
+    } else {
+        $AlembicExe = "alembic"
+    }
+} elseif (Test-Path $MbPython) {
+    $PythonExe = $MbPython
+    if (Test-Path $MbAlembic) {
+        $AlembicExe = $MbAlembic
+    } else {
+        $AlembicExe = "alembic"
+    }
+} else {
+    $PythonExe = "python"
     $AlembicExe = "alembic"
 }
 
