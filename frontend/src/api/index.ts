@@ -7,6 +7,7 @@ import type {
 
 export const authApi = {
   login: (data: LoginParams) => request.post('/auth/login', data),
+  logout: () => request.post('/auth/logout'),
   getMe: () => request.get('/auth/me'),
   getMyPermissions: () => request.get('/auth/me/permissions'),
 }
@@ -84,9 +85,8 @@ export const experimentApi = {
     request.post('/experiments/records/batch-delete', { ids }),
   // 导出实验记录 Excel
   exportRecords: (expId: number) => {
-    const token = localStorage.getItem('token')
     return fetch(`/api/v1/experiments/${expId}/records/export`, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
     }).then(async (res) => {
       if (!res.ok) throw new Error('导出失败')
       const blob = await res.blob()
@@ -115,9 +115,8 @@ export const experimentApi = {
   deleteAttachment: (id: number) => request.delete(`/experiments/attachments/${id}`),
   // 下载附件：inline=true 预览，false 下载
   downloadAttachment: async (attachmentId: number, inline: boolean = false) => {
-    const token = localStorage.getItem('token')
     const url = `/api/v1/experiments/attachments/${attachmentId}/download?inline=${inline ? 'true' : 'false'}`
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    const res = await fetch(url, { credentials: 'include' })
     if (!res.ok) throw new Error('下载失败')
     if (inline) {
       const blob = await res.blob()
@@ -205,13 +204,12 @@ export const documentApi = {
   getVersions: (docId: number) => request.get(`/documents/${docId}/versions`),
   // 下载 / 预览
   downloadDoc: async (docId: number, versionId?: number, inline: boolean = false) => {
-    const token = localStorage.getItem('token')
     const params = new URLSearchParams()
     if (versionId) params.set('version_id', String(versionId))
     if (inline) params.set('inline', 'true')
     const url = `/api/v1/documents/${docId}/download?${params.toString()}`
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` }
+      credentials: 'include'
     })
     if (!res.ok) throw new Error('Download failed')
     if (inline) {

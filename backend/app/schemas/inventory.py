@@ -7,7 +7,7 @@ from datetime import datetime, date
 # ===== InventoryItem =====
 class InventoryItemBase(BaseModel):
     material_id: int
-    warehouse: str = Field(..., max_length=100)
+    warehouse_id: int
     location: Optional[str] = Field(None, max_length=100)
     quantity: float = 0.0
     reserved_qty: float = 0.0
@@ -24,7 +24,7 @@ class InventoryItemCreate(InventoryItemBase):
 
 
 class InventoryItemUpdate(BaseModel):
-    warehouse: Optional[str] = None
+    warehouse_id: Optional[int] = None
     location: Optional[str] = None
     safety_stock: Optional[float] = None
     max_stock: Optional[float] = None
@@ -42,6 +42,8 @@ class InventoryItemOut(InventoryItemBase):
     material_spec: Optional[str] = None
     material_type: Optional[str] = None
     creator_name: Optional[str] = None
+    warehouse_name: Optional[str] = None
+    warehouse_code: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -52,7 +54,7 @@ class InventoryItemOut(InventoryItemBase):
 class InventoryItemQuery(BaseModel):
     """库存查询参数"""
     keyword: Optional[str] = None  # 物料编码/名称
-    warehouse: Optional[str] = None
+    warehouse_id: Optional[int] = None
     status: Optional[str] = None  # normal/low_stock/out_of_stock/expired
     material_type: Optional[str] = None
     low_stock_only: Optional[bool] = None  # 仅显示低库存
@@ -72,10 +74,10 @@ class InventoryItemQuery(BaseModel):
 class InventoryTransactionCreate(BaseModel):
     """创建交易记录"""
     inventory_item_id: int
-    transaction_type: str = Field(..., max_length=32)
+    transaction_type: Optional[str] = Field(None, max_length=32)
     quantity: float = Field(..., description="正数=入库, 负数=出库")
-    source_warehouse: Optional[str] = None
-    target_warehouse: Optional[str] = None
+    source_warehouse_id: Optional[int] = None
+    target_warehouse_id: Optional[int] = None
     related_project_id: Optional[int] = None
     related_department_id: Optional[int] = None
     borrower_id: Optional[int] = None
@@ -93,8 +95,10 @@ class InventoryTransactionOut(BaseModel):
     quantity: float
     before_qty: float
     after_qty: float
-    source_warehouse: Optional[str] = None
-    target_warehouse: Optional[str] = None
+    source_warehouse_id: Optional[int] = None
+    source_warehouse_name: Optional[str] = None
+    target_warehouse_id: Optional[int] = None
+    target_warehouse_name: Optional[str] = None
     related_project_id: Optional[int] = None
     related_project_name: Optional[str] = None
     related_department_id: Optional[int] = None
@@ -110,7 +114,8 @@ class InventoryTransactionOut(BaseModel):
     created_at: datetime
     material_code: Optional[str] = None
     material_name: Optional[str] = None
-    warehouse: Optional[str] = None
+    warehouse_id: Optional[int] = None
+    warehouse_name: Optional[str] = None
     unit: Optional[str] = None
 
     class Config:
@@ -140,7 +145,7 @@ class TransactionQuery(BaseModel):
 
 # ===== Approval =====
 class ApprovalCreate(BaseModel):
-    transaction_id: int
+    transaction_id: Optional[int] = None
     approval_level: int = 1
     approver_id: int
     approver_name: str

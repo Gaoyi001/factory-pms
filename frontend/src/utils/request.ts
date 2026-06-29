@@ -193,11 +193,10 @@ const handleUnauthorized = (config: any) => {
 const request: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
-  headers: { 'Content-Type': 'application/json' }
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 })
 
-// 请求拦截：注入 token & 清理空值
-// 注意：axios 原生支持 config.signal，组件可直接传 { signal } 取消请求
 request.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem('token')
   if (token) {

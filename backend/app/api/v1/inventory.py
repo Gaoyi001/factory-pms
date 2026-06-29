@@ -77,7 +77,10 @@ def _enrich_tx(tx: InventoryTransaction) -> dict:
         "inventory_item_id": tx.inventory_item_id,
         "transaction_type": tx.transaction_type,
         "quantity": tx.quantity, "before_qty": tx.before_qty, "after_qty": tx.after_qty,
-        "source_warehouse": tx.source_warehouse, "target_warehouse": tx.target_warehouse,
+        "source_warehouse_id": tx.source_warehouse_id,
+        "source_warehouse_name": tx.source_warehouse.name if tx.source_warehouse else None,
+        "target_warehouse_id": tx.target_warehouse_id,
+        "target_warehouse_name": tx.target_warehouse.name if tx.target_warehouse else None,
         "related_project_id": tx.related_project_id,
         "related_project_name": tx.related_project.name if tx.related_project else None,
         "related_department_id": tx.related_department_id,
@@ -91,7 +94,8 @@ def _enrich_tx(tx: InventoryTransaction) -> dict:
         "remark": tx.remark, "created_at": tx.created_at,
         "material_code": item.material.code if item and item.material else None,
         "material_name": item.material.name if item and item.material else None,
-        "warehouse": item.warehouse if item else None,
+        "warehouse_id": item.warehouse_id if item else None,
+        "warehouse_name": item.warehouse.name if item and item.warehouse else None,
         "unit": item.unit if item else None,
     }
     return result
@@ -131,7 +135,6 @@ def update_warehouse(wh_id: int, data: WarehouseUpdate, db: Session = Depends(ge
 
     update_data = data.model_dump(exclude_unset=True)
 
-    # 唯一性检查
     if "name" in update_data and update_data["name"] != wh.name:
         if db.query(Warehouse).filter(Warehouse.name == update_data["name"]).first():
             raise HTTPException(400, f"仓库名称「{update_data['name']}」已存在")
@@ -139,27 +142,9 @@ def update_warehouse(wh_id: int, data: WarehouseUpdate, db: Session = Depends(ge
         if db.query(Warehouse).filter(Warehouse.code == update_data["code"]).first():
             raise HTTPException(400, f"仓库编码「{update_data['code']}」已存在")
 
-    old_name = wh.name
     for field, value in update_data.items():
         setattr(wh, field, value)
     wh.updated_at = datetime.utcnow()
-
-    # 如果仓库名称变更，同步更新关联数据中的仓库名
-    new_name = wh.name
-    if old_name != new_name:
-        # 更新 InventoryItem 中的 warehouse 字段
-        db.query(InventoryItem).filter(
-            InventoryItem.warehouse == old_name
-        ).update({InventoryItem.warehouse: new_name}, synchronize_session=False)
-        # 更新 InventoryTransaction 中的 source_warehouse
-        db.query(InventoryTransaction).filter(
-            InventoryTransaction.source_warehouse == old_name
-        ).update({InventoryTransaction.source_warehouse: new_name}, synchronize_session=False)
-        # 更新 InventoryTransaction 中的 target_warehouse
-        db.query(InventoryTransaction).filter(
-            InventoryTransaction.target_warehouse == old_name
-        ).update({InventoryTransaction.target_warehouse: new_name}, synchronize_session=False)
-
     db.commit()
     return ResponseBase(data={"msg": "更新成功"})
 
@@ -172,17 +157,15 @@ def delete_warehouse(wh_id: int, db: Session = Depends(get_db),
     if not wh:
         raise HTTPException(404, "仓库不存在")
 
-    # 检查库存记录
-    item_count = db.query(InventoryItem).filter(InventoryItem.warehouse == wh.name).count()
+    item_count = db.query(InventoryItem).filter(InventoryItem.warehouse_id == wh.id).count()
     if item_count > 0:
         raise HTTPException(400, f"仓库「{wh.name}」下还有 {item_count} 条库存记录，请先处理后再删除")
 
-    # 检查交易记录中的仓库引用
     tx_src = db.query(InventoryTransaction).filter(
-        InventoryTransaction.source_warehouse == wh.name
+        InventoryTransaction.source_warehouse_id == wh.id
     ).count()
     tx_tgt = db.query(InventoryTransaction).filter(
-        InventoryTransaction.target_warehouse == wh.name
+        InventoryTransaction.target_warehouse_id == wh.id
     ).count()
     if tx_src > 0 or tx_tgt > 0:
         raise HTTPException(400, f"仓库「{wh.name}」关联了 {tx_src + tx_tgt} 条交易记录，请先处理后再删除")
@@ -200,15 +183,14 @@ def list_inventory(query: InventoryItemQuery = Depends(), db: Session = Depends(
     """库存列表"""
     q = db.query(InventoryItem)
 
-    # 统一 join Material（仅当需要时）
     need_material = bool(query.keyword) or bool(query.material_type)
     if need_material:
         q = q.join(Material, InventoryItem.material_id == Material.id)
 
     if query.keyword:
         q = q.filter(or_(Material.code.contains(query.keyword), Material.name.contains(query.keyword)))
-    if query.warehouse:
-        q = q.filter(InventoryItem.warehouse == query.warehouse)
+    if query.warehouse_id:
+        q = q.filter(InventoryItem.warehouse_id == query.warehouse_id)
     if query.status:
         q = q.filter(InventoryItem.status == query.status)
     if query.low_stock_only:
@@ -223,8 +205,9 @@ def list_inventory(query: InventoryItemQuery = Depends(), db: Session = Depends(
     for item in items:
         mat = item.material
         creator = item.creator
+        wh = item.warehouse
         result.append(InventoryItemOut(
-            id=item.id, material_id=item.material_id, warehouse=item.warehouse,
+            id=item.id, material_id=item.material_id, warehouse_id=item.warehouse_id,
             location=item.location, quantity=item.quantity, reserved_qty=item.reserved_qty,
             safety_stock=item.safety_stock, max_stock=item.max_stock,
             unit=item.unit, status=item.status,
@@ -235,6 +218,8 @@ def list_inventory(query: InventoryItemQuery = Depends(), db: Session = Depends(
             material_spec=mat.spec if mat else None,
             material_type=mat.material_type if mat else None,
             creator_name=creator.real_name if creator else None,
+            warehouse_name=wh.name if wh else None,
+            warehouse_code=wh.code if wh else None,
         ).model_dump())
 
     return ResponseBase(data=PaginationResponse(
@@ -245,9 +230,9 @@ def list_inventory(query: InventoryItemQuery = Depends(), db: Session = Depends(
 
 @router.get("/warehouses", response_model=ResponseBase)
 def list_warehouses_legacy(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    """仓库列表（去重，旧接口兼容）"""
-    warehouses = db.query(InventoryItem.warehouse).distinct().all()
-    return ResponseBase(data=[w[0] for w in warehouses if w[0]])
+    """仓库列表（兼容旧接口，返回仓库ID和名称）"""
+    warehouses = db.query(Warehouse).filter(Warehouse.is_active == True).order_by(Warehouse.id).all()
+    return ResponseBase(data=[{"id": w.id, "name": w.name, "code": w.code} for w in warehouses])
 
 
 @router.post("/create", response_model=ResponseBase)
@@ -257,21 +242,19 @@ def create_inventory(data: InventoryItemCreate, db: Session = Depends(get_db),
     if not db.query(Material).filter(Material.id == data.material_id).first():
         raise HTTPException(400, "物料不存在")
 
-    # 校验仓库是否存在且启用
-    wh = db.query(Warehouse).filter(Warehouse.name == data.warehouse, Warehouse.is_active == True).first()
+    wh = db.query(Warehouse).filter(Warehouse.id == data.warehouse_id, Warehouse.is_active == True).first()
     if not wh:
-        raise HTTPException(400, f"仓库「{data.warehouse}」不存在或已停用")
+        raise HTTPException(400, "仓库不存在或已停用")
 
-    # 检查同物料同仓库是否已存在
     existing = db.query(InventoryItem).filter(
         InventoryItem.material_id == data.material_id,
-        InventoryItem.warehouse == data.warehouse,
+        InventoryItem.warehouse_id == data.warehouse_id,
     ).first()
     if existing:
-        raise HTTPException(400, f"该物料在仓库「{data.warehouse}」已存在库存记录")
+        raise HTTPException(400, f"该物料在仓库「{wh.name}」已存在库存记录")
 
     item = InventoryItem(
-        material_id=data.material_id, warehouse=data.warehouse,
+        material_id=data.material_id, warehouse_id=data.warehouse_id,
         location=data.location, quantity=data.quantity,
         reserved_qty=0.0,
         safety_stock=data.safety_stock, max_stock=data.max_stock,
@@ -283,7 +266,6 @@ def create_inventory(data: InventoryItemCreate, db: Session = Depends(get_db),
     db.add(item)
     db.flush()
 
-    # 如果有初始数量，创建入库交易记录
     if data.quantity > 0:
         tx = InventoryTransaction(
             transaction_no=_generate_tx_no("inbound", db),
@@ -478,19 +460,20 @@ def check_inventory(data: InventoryTransactionCreate, db: Session = Depends(get_
 def transfer(data: InventoryTransactionCreate, db: Session = Depends(get_db),
              current: User = Depends(require_permission("inventory", "update"))):
     """调拨 — 从一个仓库转移到另一个（同一事务保证原子性）"""
-    if not data.source_warehouse or not data.target_warehouse:
+    if not data.source_warehouse_id or not data.target_warehouse_id:
         raise HTTPException(400, "请指定来源仓库和目标仓库")
-    if data.source_warehouse == data.target_warehouse:
+    if data.source_warehouse_id == data.target_warehouse_id:
         raise HTTPException(400, "来源仓库和目标仓库不能相同")
     if data.quantity <= 0:
         raise HTTPException(400, "调拨数量必须大于0")
 
-    # 校验目标仓库存在
-    tgt_wh = db.query(Warehouse).filter(
-        Warehouse.name == data.target_warehouse, Warehouse.is_active == True
-    ).first()
+    src_wh = db.query(Warehouse).filter(Warehouse.id == data.source_warehouse_id, Warehouse.is_active == True).first()
+    if not src_wh:
+        raise HTTPException(400, "来源仓库不存在或已停用")
+
+    tgt_wh = db.query(Warehouse).filter(Warehouse.id == data.target_warehouse_id, Warehouse.is_active == True).first()
     if not tgt_wh:
-        raise HTTPException(400, f"目标仓库「{data.target_warehouse}」不存在或已停用")
+        raise HTTPException(400, "目标仓库不存在或已停用")
 
     src_item = db.query(InventoryItem).filter(
         InventoryItem.id == data.inventory_item_id
@@ -500,44 +483,39 @@ def transfer(data: InventoryTransactionCreate, db: Session = Depends(get_db),
 
     qty = abs(data.quantity)
 
-    # 整个调拨操作在一个事务中：先出库、后查找/创建目标库存、再入库，统一 commit
     try:
-        # 出库（仅 flush 不 commit，确保后续失败可回滚）
         tx_out = _do_transaction_inner(
             db, data.inventory_item_id, "transfer_out", -qty,
-            current.id, source_warehouse=data.source_warehouse,
-            target_warehouse=data.target_warehouse,
-            remark=f"调拨至 {data.target_warehouse}: {data.remark or ''}",
+            current.id, source_warehouse_id=data.source_warehouse_id,
+            target_warehouse_id=data.target_warehouse_id,
+            remark=f"调拨至 {tgt_wh.name}: {data.remark or ''}",
         )
 
-        # 查找或创建目标仓库的库存记录
         tgt_item = db.query(InventoryItem).filter(
             InventoryItem.material_id == src_item.material_id,
-            InventoryItem.warehouse == data.target_warehouse,
+            InventoryItem.warehouse_id == data.target_warehouse_id,
         ).with_for_update().first()
         if not tgt_item:
             tgt_item = InventoryItem(
-                material_id=src_item.material_id, warehouse=data.target_warehouse,
+                material_id=src_item.material_id, warehouse_id=data.target_warehouse_id,
                 unit=src_item.unit, safety_stock=src_item.safety_stock,
                 created_by=current.id,
             )
             db.add(tgt_item)
             db.flush()
 
-        # 入库（仅 flush 不 commit）
         tx_in = _do_transaction_inner(
             db, tgt_item.id, "transfer_in", qty,
-            current.id, source_warehouse=data.source_warehouse,
-            target_warehouse=data.target_warehouse,
-            remark=f"从 {data.source_warehouse} 调入: {data.remark or ''}",
+            current.id, source_warehouse_id=data.source_warehouse_id,
+            target_warehouse_id=data.target_warehouse_id,
+            remark=f"从 {src_wh.name} 调入: {data.remark or ''}",
         )
 
-        # 两步都成功后统一提交
         db.commit()
         return ResponseBase(data={
             "out_id": tx_out.id, "out_no": tx_out.transaction_no,
             "in_id": tx_in.id, "in_no": tx_in.transaction_no,
-            "msg": f"调拨完成: {data.source_warehouse} → {data.target_warehouse}, 数量{qty}",
+            "msg": f"调拨完成: {src_wh.name} → {tgt_wh.name}, 数量{qty}",
         })
     except Exception:
         db.rollback()
@@ -672,6 +650,7 @@ def list_alerts(db: Session = Depends(get_db), _: User = Depends(get_current_use
     for a in alerts:
         item = a.inventory_item
         mat = item.material if item else None
+        wh = item.warehouse if item else None
         result.append({
             "id": a.id, "inventory_item_id": a.inventory_item_id,
             "alert_type": a.alert_type, "message": a.message,
@@ -679,7 +658,8 @@ def list_alerts(db: Session = Depends(get_db), _: User = Depends(get_current_use
             "created_at": str(a.created_at),
             "material_code": mat.code if mat else None,
             "material_name": mat.name if mat else None,
-            "warehouse": item.warehouse if item else None,
+            "warehouse_id": item.warehouse_id if item else None,
+            "warehouse_name": wh.name if wh else None,
         })
     return ResponseBase(data=result)
 
@@ -720,14 +700,13 @@ def alert_summary(db: Session = Depends(get_db), _: User = Depends(get_current_u
 
 @router.get("/stats/overview", response_model=ResponseBase)
 def inventory_overview(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    """库存总览"""
-    items = db.query(InventoryItem).all()
-    total_items = len(items)
-    total_qty = sum(i.quantity for i in items)
-    normal = sum(1 for i in items if i.status == "normal")
-    low = sum(1 for i in items if i.status == "low_stock")
-    out = sum(1 for i in items if i.status == "out_of_stock")
-    expired = sum(1 for i in items if i.status == "expired")
+    """库存总览（使用 SQL 聚合函数优化性能）"""
+    total_items = db.query(func.count(InventoryItem.id)).scalar() or 0
+    total_qty = db.query(func.sum(InventoryItem.quantity)).scalar() or 0.0
+    normal = db.query(func.count(InventoryItem.id)).filter(InventoryItem.status == "normal").scalar() or 0
+    low = db.query(func.count(InventoryItem.id)).filter(InventoryItem.status == "low_stock").scalar() or 0
+    out = db.query(func.count(InventoryItem.id)).filter(InventoryItem.status == "out_of_stock").scalar() or 0
+    expired = db.query(func.count(InventoryItem.id)).filter(InventoryItem.status == "expired").scalar() or 0
 
     return ResponseBase(data={
         "total_items": total_items, "total_quantity": round(total_qty, 2),
@@ -740,20 +719,24 @@ def inventory_overview(db: Session = Depends(get_db), _: User = Depends(get_curr
 def stats_by_warehouse(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     """按仓库统计"""
     rows = db.query(
-        InventoryItem.warehouse,
+        InventoryItem.warehouse_id,
+        Warehouse.name.label("warehouse_name"),
+        Warehouse.code.label("warehouse_code"),
         func.count(InventoryItem.id).label("item_count"),
         func.sum(InventoryItem.quantity).label("total_qty"),
-    ).group_by(InventoryItem.warehouse).all()
+    ).join(Warehouse, InventoryItem.warehouse_id == Warehouse.id, isouter=True)\
+    .group_by(InventoryItem.warehouse_id, Warehouse.name, Warehouse.code).all()
 
     result = []
     for r in rows:
         low_count = db.query(InventoryItem).filter(
-            InventoryItem.warehouse == r[0],
+            InventoryItem.warehouse_id == r[0],
             InventoryItem.status.in_(["low_stock", "out_of_stock"])
         ).count()
         result.append({
-            "warehouse": r[0], "item_count": r[1],
-            "total_quantity": round(float(r[2] or 0), 2),
+            "warehouse_id": r[0], "warehouse_name": r[1], "warehouse_code": r[2],
+            "item_count": r[3],
+            "total_quantity": round(float(r[4] or 0), 2),
             "low_stock_count": low_count,
         })
 
@@ -782,17 +765,18 @@ def turnover_report(days: int = 30, db: Session = Depends(get_db), _: User = Dep
         turnover = period_out / avg_qty if avg_qty > 0 else 0
 
         mat = item.material
+        wh = item.warehouse
         result.append({
             "material_code": mat.code if mat else "",
             "material_name": mat.name if mat else "",
-            "warehouse": item.warehouse,
+            "warehouse_id": item.warehouse_id,
+            "warehouse_name": wh.name if wh else "",
             "period_in": round(period_in, 2), "period_out": round(period_out, 2),
             "begin_qty": round(begin_qty, 2), "end_qty": round(end_qty, 2),
             "avg_qty": round(avg_qty, 2),
             "turnover_rate": round(turnover, 2),
         })
 
-    # 按周转率降序
     result.sort(key=lambda x: x["turnover_rate"], reverse=True)
     return ResponseBase(data={"days": days, "items": result})
 
@@ -805,8 +789,10 @@ def get_inventory(item_id: int, db: Session = Depends(get_db), _: User = Depends
     if not item:
         raise HTTPException(404, "库存记录不存在")
     mat = item.material
+    wh = item.warehouse
     return ResponseBase(data={
-        "id": item.id, "material_id": item.material_id, "warehouse": item.warehouse,
+        "id": item.id, "material_id": item.material_id, "warehouse_id": item.warehouse_id,
+        "warehouse_name": wh.name if wh else None, "warehouse_code": wh.code if wh else None,
         "location": item.location, "quantity": item.quantity, "reserved_qty": item.reserved_qty,
         "safety_stock": item.safety_stock, "max_stock": item.max_stock,
         "unit": item.unit, "status": item.status,

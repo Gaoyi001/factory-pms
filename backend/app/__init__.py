@@ -1,6 +1,9 @@
 # app/__init__.py
+import logging
 from app.core.database import Base, engine
 from app.models import user, project, experiment, bom, sample, document
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["Base", "engine"]
 
@@ -46,8 +49,8 @@ def init_db():
             db.add(admin)
             db.commit()
 
-        print("✅ 数据库初始化完成")
+        logger.info("数据库初始化完成")
     except Exception as e:
-        print(f"初始化失败: {e}")
+        logger.error(f"数据库初始化失败: {e}")
     finally:
         db.close()

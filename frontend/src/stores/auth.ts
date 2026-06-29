@@ -4,18 +4,15 @@ import { authApi, userEnhanceApi } from '@/api'
 import type { UserOut } from '@/types/user'
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string>(localStorage.getItem('token') || '')
   const user = ref<UserOut | null>(null)
   const loading = ref(false)
-  // 权限码列表，如 ['project:read', 'bom:create', ...]
   const permissions = ref<string[]>(JSON.parse(localStorage.getItem('permissions') || '[]'))
   const isAdmin = ref<boolean>(localStorage.getItem('isAdmin') === 'true')
 
-  const isAuthenticated = computed(() => !!token.value)
+  const isAuthenticated = computed(() => !!user.value)
   const username = computed(() => user.value?.real_name || user.value?.username || '用户')
   const userRole = computed(() => user.value?.role || '')
 
-  // 初始化：从 localStorage 恢复用户信息
   function initFromStorage() {
     const stored = localStorage.getItem('userInfo')
     if (stored) {
@@ -31,14 +28,11 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true
     try {
       const res = await authApi.login({ username, password })
-      token.value = res.access_token
-      localStorage.setItem('token', res.access_token)
 
       const me = await authApi.getMe()
       user.value = me
       localStorage.setItem('userInfo', JSON.stringify(me))
 
-      // 拉取权限码
       await fetchPermissions()
       return me
     } finally {
@@ -71,12 +65,15 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
-    token.value = ''
+  async function logout() {
+    try {
+      await authApi.logout()
+    } catch {
+      // 忽略登出错误
+    }
     user.value = null
     permissions.value = []
     isAdmin.value = false
-    localStorage.removeItem('token')
     localStorage.removeItem('userInfo')
     localStorage.removeItem('permissions')
     localStorage.removeItem('isAdmin')

@@ -77,14 +77,22 @@ async def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     """获取当前登录用户，未认证返回 401"""
-    if credentials is None:
+    token = None
+    if credentials is not None:
+        token = credentials.credentials
+    else:
+        cookie_token = request.cookies.get("access_token")
+        if cookie_token and cookie_token.startswith("Bearer "):
+            token = cookie_token[7:]
+
+    if token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="请先登录",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    payload = _parse_token(credentials.credentials)
+    payload = _parse_token(token)
     user_id_str = payload.get("sub")
     if user_id_str is None:
         raise HTTPException(
@@ -113,7 +121,7 @@ async def get_current_user(
     # 校验角色是否存在
     if user.role:
         role = db.query(Role).filter(Role.code == user.role, Role.is_active == True).first()
-        if not role:
+        if not role and user.role != "admin":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"角色'{user.role}'已失效，请联系管理员",

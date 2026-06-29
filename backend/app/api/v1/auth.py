@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.config import settings
 from app.core.security import create_access_token, verify_password, get_password_hash, get_current_user, require_role
 from app.core.rate_limit import login_rate_limiter
 from app.models.user import User, Department
@@ -14,7 +15,7 @@ router = APIRouter()
 
 @router.post("/login", response_model=ResponseBase)
 def login(data: UserLogin, request: Request, db: Session = Depends(get_db)):
-    # 速率限制：每个 IP 每分钟最多 5 次登录尝试
+    from fastapi.responses import JSONResponse
     client_ip = request.client.host if request.client else "unknown"
     allowed, remaining = login_rate_limiter.is_allowed(client_ip)
     if not allowed:
@@ -31,7 +32,19 @@ def login(data: UserLogin, request: Request, db: Session = Depends(get_db)):
     user.last_login_at = __import__('datetime').datetime.utcnow()
     db.commit()
     token = create_access_token({"sub": str(user.id), "role": user.role})
-    return ResponseBase(data=TokenResponse(access_token=token).model_dump())
+
+    response = JSONResponse(
+        content=ResponseBase(data=TokenResponse(access_token=token).model_dump()).model_dump()
+    )
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {token}",
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="strict",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+    return response
 
 
 @router.post("/register", response_model=ResponseBase)
@@ -69,6 +82,15 @@ def get_me(current_user: User = Depends(get_current_user), db: Session = Depends
         last_login_at=current_user.last_login_at,
         department=dept,
     ).model_dump())
+
+
+@router.post("/logout", response_model=ResponseBase)
+def logout():
+    """登出 — 清除 HttpOnly Cookie"""
+    from fastapi.responses import JSONResponse
+    response = JSONResponse(content={"code": 200, "message": "登出成功", "data": None})
+    response.delete_cookie("access_token")
+    return response
 
 
 @router.get("/me/permissions", response_model=ResponseBase)

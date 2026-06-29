@@ -19,14 +19,15 @@ from app.schemas.document import (
 )
 from app.schemas.common import ResponseBase, PaginationResponse
 from app.core.operation_log import log_file_download
+from app.services.document_service import DocumentService
 import datetime, os, shutil
 
 router = APIRouter()
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads", "documents")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# 文件上传安全配置
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+MAX_FILE_SIZE = 50 * 1024 * 1024
+
 ALLOWED_MIME_TYPES = {
     "application/pdf", "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -45,13 +46,11 @@ ALLOWED_EXTENSIONS = {
     ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg",
     ".txt", ".csv", ".html", ".md",
     ".zip", ".rar", ".json", ".xml",
-    ".dwg", ".dxf", ".step", ".stp", ".igs",  # 工程图纸
+    ".dwg", ".dxf", ".step", ".stp", ".igs",
 }
 
-# 危险文件类型：禁止 inline 预览，必须以 attachment 下载
 DANGEROUS_EXTENSIONS = {".html", ".htm", ".svg", ".js", ".exe", ".bat", ".sh", ".php"}
 
-# 文件头 magic bytes（用于校验真实类型，防止 MIME 伪造）
 FILE_MAGIC = {
     b"%PDF": ".pdf",
     b"\xff\xd8\xff": ".jpg",
@@ -63,9 +62,6 @@ FILE_MAGIC = {
 
 
 def _validate_upload_file(file: UploadFile) -> str:
-    """公共上传安全校验：扩展名白名单 + MIME 校验 + 文件名净化
-    返回净化后的安全文件名；不通过则抛 HTTPException。
-    """
     safe_filename = os.path.basename(file.filename or "")
     if not safe_filename or safe_filename in (".", ".."):
         raise HTTPException(400, "无效的文件名")
@@ -77,12 +73,28 @@ def _validate_upload_file(file: UploadFile) -> str:
     return safe_filename
 
 
+def _validate_magic_bytes(file: UploadFile) -> bool:
+    content = file.file.read(16)
+    file.file.seek(0)
+
+    for magic, expected_ext in FILE_MAGIC.items():
+        if content.startswith(magic):
+            ext = os.path.splitext(file.filename or "")[1].lower()
+            if isinstance(expected_ext, tuple):
+                if ext not in expected_ext:
+                    raise HTTPException(400, f"文件内容与扩展名不匹配：期望 {expected_ext}")
+            else:
+                if ext != expected_ext:
+                    raise HTTPException(400, f"文件内容与扩展名不匹配：期望 {expected_ext}")
+            return True
+    return True
+
+
 async def _stream_write_file(file: UploadFile, file_path: str) -> int:
-    """流式写入文件，返回字节数；超限时删除文件并抛异常"""
     file_size = 0
     with open(file_path, "wb") as f:
         while True:
-            chunk = await file.read(1024 * 1024)  # 1MB 分块
+            chunk = await file.read(1024 * 1024)
             if not chunk:
                 break
             file_size += len(chunk)
@@ -95,10 +107,9 @@ async def _stream_write_file(file: UploadFile, file_path: str) -> int:
     return file_size
 
 
-# ===== 文档（含文件上传）=====
-
 @router.get("/list", response_model=ResponseBase)
 def list_documents(query: DocumentQuery = Depends(), db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    service = DocumentService(db)
     q = db.query(Document)
     if query.doc_type:
         q = q.filter(Document.doc_type == query.doc_type)
@@ -121,6 +132,7 @@ def list_documents(query: DocumentQuery = Depends(), db: Session = Depends(get_d
 
 @router.post("/create", response_model=ResponseBase)
 def create_document(data: DocumentCreate, db: Session = Depends(get_db), current: User = Depends(require_permission("document", "create"))):
+    service = DocumentService(db)
     code = f"DOC{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
     tags = data.tags
     if isinstance(tags, str):
@@ -138,7 +150,8 @@ def create_document(data: DocumentCreate, db: Session = Depends(get_db), current
 
 @router.get("/{doc_id}", response_model=ResponseBase)
 def get_document(doc_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
+    service = DocumentService(db)
+    doc = service.get_document(doc_id)
     if not doc:
         raise HTTPException(404, "文档不存在")
     return ResponseBase(data=DocumentOut.model_validate(doc).model_dump())
@@ -146,7 +159,8 @@ def get_document(doc_id: int, db: Session = Depends(get_db), _: User = Depends(g
 
 @router.put("/{doc_id}", response_model=ResponseBase)
 def update_document(doc_id: int, data: DocumentUpdate, db: Session = Depends(get_db), _: User = Depends(require_permission("document", "update"))):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
+    service = DocumentService(db)
+    doc = service.get_document(doc_id)
     if not doc:
         raise HTTPException(404, "文档不存在")
     update_data = data.model_dump(exclude_unset=True)
@@ -159,38 +173,21 @@ def update_document(doc_id: int, data: DocumentUpdate, db: Session = Depends(get
 
 @router.delete("/{doc_id}", response_model=ResponseBase)
 def delete_document(doc_id: int, db: Session = Depends(get_db), _: User = Depends(require_permission("document", "delete"))):
-    """删除文档（级联删除版本记录和审批记录）"""
-    doc = db.query(Document).filter(Document.id == doc_id).first()
-    if not doc:
+    service = DocumentService(db)
+    success = service.delete_document(doc_id)
+    if not success:
         raise HTTPException(404, "文档不存在")
-
-    # 先收集物理文件路径，再提交数据库事务
-    versions = doc.versions if doc.versions else []
-    file_paths = [v.file_path for v in versions if v.file_path and os.path.exists(v.file_path)]
-
-    db.delete(doc)
-    db.commit()
-
-    # 事务成功后清理物理文件（失败仅忽略，不回滚业务）
-    for path in file_paths:
-        try:
-            os.remove(path)
-        except OSError:
-            pass
-
     return ResponseBase(data={"msg": "文档已删除"})
 
 
-# ===== 文档版本（文件上传）=====
-
 @router.post("/{doc_id}/upload", response_model=ResponseBase)
 async def upload_document_version(doc_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), current: User = Depends(require_permission("document", "upload"))):
-    """上传文档新版本（含安全校验：大小限制、MIME类型白名单）"""
     doc = db.query(Document).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(404, "文档不存在")
 
     safe_filename = _validate_upload_file(file)
+    _validate_magic_bytes(file)
     ext = os.path.splitext(safe_filename)[1].lower()
 
     existing_count = db.query(DocumentVersion).filter(
@@ -217,13 +214,11 @@ async def upload_document_version(doc_id: int, file: UploadFile = File(...), db:
 
 @router.get("/{doc_id}/versions", response_model=ResponseBase)
 def list_document_versions(doc_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    """获取文档的所有版本列表"""
-    doc = db.query(Document).filter(Document.id == doc_id).first()
+    service = DocumentService(db)
+    doc = service.get_document(doc_id)
     if not doc:
         raise HTTPException(404, "文档不存在")
-    versions = db.query(DocumentVersion).filter(
-        DocumentVersion.document_id == doc_id
-    ).order_by(DocumentVersion.id.desc()).all()
+    versions = service.list_versions(doc_id)
     return ResponseBase(data={
         "document_id": doc_id,
         "document_code": doc.code,
@@ -240,7 +235,6 @@ def list_document_versions(doc_id: int, db: Session = Depends(get_db), _: User =
 
 
 def _send_file_response(dv: DocumentVersion, inline: bool = False):
-    """统一文件响应：inline=预览，attachment=下载（文件名RFC 2231编码防注入）"""
     if not os.path.exists(dv.file_path):
         raise HTTPException(404, "文件已不存在于服务器")
     disposition = "inline" if inline else "attachment"
@@ -265,16 +259,15 @@ def download_document(
     request: Request = None,
     current: User = Depends(require_permission("document", "download")),
 ):
-    """下载/预览文档文件（inline=true 时浏览器内预览）"""
-    doc = db.query(Document).filter(Document.id == doc_id).first()
+    service = DocumentService(db)
+    doc = service.get_document(doc_id)
     if not doc:
         raise HTTPException(404, "文档不存在")
 
     if version_id:
-        dv = db.query(DocumentVersion).filter(
-            DocumentVersion.id == version_id,
-            DocumentVersion.document_id == doc_id,
-        ).first()
+        dv = service.get_version(version_id)
+        if dv and dv.document_id != doc_id:
+            dv = None
     else:
         dv = db.query(DocumentVersion).filter(
             DocumentVersion.document_id == doc_id,
@@ -303,18 +296,11 @@ def download_document_version(
     request: Request = None,
     current: User = Depends(require_permission("document", "download")),
 ):
-    """下载/预览指定版本的文件"""
     return download_document(doc_id=doc_id, version_id=version_id, inline=inline, db=db, request=request, current=current)
 
 
-# ===== 知识库（统一展示所有含文件的文档）=====
-
 @router.get("/knowledge/list", response_model=ResponseBase)
 def list_knowledge_documents(query: KnowledgeQuery = Depends(), db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    """
-    知识库列表：返回所有已上传文件的文档（来自"新建文档"和"研发实验"）。
-    仅返回至少有一个文件版本的文档。
-    """
     sq = db.query(DocumentVersion.document_id).distinct().subquery()
     q = db.query(Document).filter(Document.id.in_(sq))
 
@@ -325,7 +311,6 @@ def list_knowledge_documents(query: KnowledgeQuery = Depends(), db: Session = De
     if query.keyword:
         q = q.filter(Document.title.contains(query.keyword) | Document.code.contains(query.keyword))
     if query.category:
-        # 使用 doc_type 作为分类筛选（知识库复用 doc_type 字段）
         q = q.filter(Document.doc_type == query.category)
     if query.created_from:
         q = q.filter(Document.created_at >= query.created_from)
@@ -335,7 +320,6 @@ def list_knowledge_documents(query: KnowledgeQuery = Depends(), db: Session = De
     total = q.count()
     items = q.order_by(Document.id.desc()).offset(query.offset).limit(query.limit).all()
 
-    # 为每个文档附加最新版本信息
     result = []
     for d in items:
         d_dict = DocumentOut.model_validate(d).model_dump()
@@ -359,8 +343,6 @@ def list_knowledge_documents(query: KnowledgeQuery = Depends(), db: Session = De
     ).model_dump())
 
 
-# ===== 研发实验上传文档 =====
-
 @router.post("/from-experiment/{exp_id}", response_model=ResponseBase)
 async def create_document_from_experiment(
     exp_id: int,
@@ -371,14 +353,13 @@ async def create_document_from_experiment(
     db: Session = Depends(get_db),
     current: User = Depends(require_permission("document", "create")),
 ):
-    """
-    研发实验模块上传文档：创建文档记录 + 首个文件版本，source_module='experiment'。
-    上传的文档会在知识库中统一展示。
-    """
     from app.models.experiment import Experiment
     exp = db.query(Experiment).filter(Experiment.id == exp_id).first()
     if not exp:
         raise HTTPException(404, "实验不存在")
+
+    _validate_upload_file(file)
+    _validate_magic_bytes(file)
 
     code = f"DOC{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
     doc = Document(
@@ -393,7 +374,7 @@ async def create_document_from_experiment(
     db.flush()
 
     version = "V1.0"
-    safe_filename = _validate_upload_file(file)
+    safe_filename = os.path.basename(file.filename or "")
     file_path = os.path.join(UPLOAD_DIR, f"{doc.code}_{version}_{safe_filename}")
     file_size = await _stream_write_file(file, file_path)
 
@@ -410,9 +391,6 @@ async def create_document_from_experiment(
     db.refresh(doc)
     return ResponseBase(data=DocumentOut.model_validate(doc).model_dump())
 
-
-# ===== 知识文章（保留接口，前端不再使用）=====
-# 以下接口仅用于向后兼容，知识库功能已迁移至 Document 模型。
 
 @router.get("/knowledge/{article_id}", response_model=ResponseBase)
 def get_article(article_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):

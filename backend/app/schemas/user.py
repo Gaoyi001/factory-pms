@@ -9,7 +9,7 @@ class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=64)
     email: EmailStr
     real_name: Optional[str] = None
-    role: str = Field(default="member", pattern="^(admin|manager|member|viewer)$")
+    role: str = Field(default="member", min_length=2, max_length=32)
     dept_id: Optional[int] = None
 
 
@@ -20,7 +20,7 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     real_name: Optional[str] = None
-    role: Optional[str] = Field(None, pattern="^(admin|manager|member|viewer)$")
+    role: Optional[str] = Field(None, min_length=2, max_length=32)
     dept_id: Optional[int] = None
     is_active: Optional[bool] = None
     password: Optional[str] = Field(None, min_length=6)

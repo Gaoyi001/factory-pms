@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Date, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
+from app.core.constants import InventoryStatus, ApprovalStatus, AlertType
 
 
 class Warehouse(Base):
@@ -27,23 +28,25 @@ class InventoryItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     material_id = Column(Integer, ForeignKey("materials.id"), nullable=False, index=True)
-    warehouse = Column(String(100), nullable=False, index=True, comment="仓库名称")
+    warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=False, index=True, comment="仓库ID")
     location = Column(String(100), nullable=True, comment="库位编号")
     quantity = Column(Float, default=0.0, comment="当前库存数量")
     reserved_qty = Column(Float, default=0.0, comment="已预留/领用未归还数量")
     safety_stock = Column(Float, default=0.0, comment="安全库存阈值")
     max_stock = Column(Float, default=0.0, comment="最大库存阈值")
     unit = Column(String(20), nullable=True, comment="计量单位")
-    status = Column(String(32), default="normal", index=True, comment="normal/low_stock/out_of_stock/expired")
+    status = Column(String(32), default=InventoryStatus.NORMAL, index=True, comment="normal/low_stock/out_of_stock/expired")
     shelf_life_days = Column(Integer, nullable=True, comment="保质期（天）")
     expiry_date = Column(Date, nullable=True, comment="过期日期")
     remark = Column(Text, nullable=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    version = Column(Integer, default=0, nullable=False, comment="乐观锁版本号")
 
     material = relationship("Material", lazy="joined")
     creator = relationship("app.models.user.User", foreign_keys=[created_by], lazy="joined")
+    warehouse = relationship("Warehouse", lazy="joined")
 
 
 class InventoryTransaction(Base):
@@ -60,8 +63,8 @@ class InventoryTransaction(Base):
     quantity = Column(Float, nullable=False, comment="交易数量（正=入库，负=出库）")
     before_qty = Column(Float, default=0.0, comment="交易前库存")
     after_qty = Column(Float, default=0.0, comment="交易后库存")
-    source_warehouse = Column(String(100), nullable=True, comment="调拨来源仓库")
-    target_warehouse = Column(String(100), nullable=True, comment="调拨目标仓库")
+    source_warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=True, index=True, comment="调拨来源仓库ID")
+    target_warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=True, index=True, comment="调拨目标仓库ID")
     related_project_id = Column(Integer, ForeignKey("projects.id"), nullable=True, comment="关联项目")
     related_department_id = Column(Integer, ForeignKey("departments.id"), nullable=True, comment="关联部门")
     operator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -69,7 +72,7 @@ class InventoryTransaction(Base):
     borrower_name = Column(String(100), nullable=True, comment="领用人姓名")
     expected_return_date = Column(Date, nullable=True, comment="预计归还日期")
     actual_return_date = Column(Date, nullable=True, comment="实际归还日期")
-    approval_status = Column(String(32), default="completed", index=True, comment="pending/approved/rejected/completed")
+    approval_status = Column(String(32), default=ApprovalStatus.COMPLETED, index=True, comment="pending/approved/rejected/completed")
     remark = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -77,6 +80,8 @@ class InventoryTransaction(Base):
     operator = relationship("app.models.user.User", foreign_keys=[operator_id], lazy="joined")
     related_project = relationship("Project", lazy="joined")
     related_department = relationship("Department", lazy="joined")
+    source_warehouse = relationship("Warehouse", foreign_keys=[source_warehouse_id], lazy="joined")
+    target_warehouse = relationship("Warehouse", foreign_keys=[target_warehouse_id], lazy="joined")
 
 
 class InventoryApproval(Base):
@@ -88,7 +93,7 @@ class InventoryApproval(Base):
     approval_level = Column(Integer, default=1, comment="审批级别 1=库管员, 2=主管")
     approver_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     approver_name = Column(String(100), nullable=True, comment="审批人姓名")
-    status = Column(String(32), default="pending", comment="pending/approved/rejected")
+    status = Column(String(32), default=ApprovalStatus.PENDING, comment="pending/approved/rejected")
     comment = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     approved_at = Column(DateTime, nullable=True)

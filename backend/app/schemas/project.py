@@ -121,7 +121,7 @@ class RequirementBase(BaseModel):
 
 
 class RequirementCreate(RequirementBase):
-    project_id: int
+    project_id: Optional[int] = None
 
 
 class RequirementUpdate(BaseModel):

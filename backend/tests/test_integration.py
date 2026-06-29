@@ -34,9 +34,12 @@ def _create_admin_and_login():
     """工具函数：创建管理员用户并返回 token"""
     from app.core.database import SessionLocal
     from app.core.security import get_password_hash
+    from app.core.rate_limit import login_rate_limiter
     from app.models.user import User, Department
     from app.models.role import Role, Permission
     from app.models.role import role_permission_table
+
+    login_rate_limiter._store.clear()
 
     db = SessionLocal()
     try:
@@ -176,21 +179,24 @@ class TestInventoryTransfer:
         token = _create_admin_and_login()
         headers = {"Authorization": f"Bearer {token}"}
         from app.core.database import SessionLocal
-        from app.models.inventory import InventoryItem
+        from app.models.inventory import InventoryItem, Warehouse
         from app.models.bom import Material
 
         db = SessionLocal()
         try:
-            # 创建物料
             m = Material(code="MAT-INV-001", name="测试物料A", unit="kg", spec="标准", material_type="material")
             db.add(m)
             db.commit()
             db.refresh(m)
 
-            # 创建库存项 (InventoryItem 使用 material_id 和 warehouse 字符串)
+            w = Warehouse(name="原料仓A", code="WH-INV-001", is_active=True)
+            db.add(w)
+            db.commit()
+            db.refresh(w)
+
             item1 = InventoryItem(
                 material_id=m.id,
-                warehouse="原料仓A",
+                warehouse_id=w.id,
                 location="A-01-01",
                 quantity=100,
                 safety_stock=10,
@@ -201,11 +207,9 @@ class TestInventoryTransfer:
             db.commit()
             db.refresh(item1)
 
-            # 验证库存已创建
             assert item1.id is not None
             assert item1.quantity == 100
 
-            # 测试通过 API 查询库存列表
             list_resp = client.get("/api/v1/inventory/list", headers=headers)
             assert list_resp.status_code == 200, f"查询库存列表失败: {list_resp.json()}"
         finally:
@@ -306,10 +310,10 @@ class TestResponseIntegrity:
 
     def test_api_response_structure(self):
         """验证 API 响应结构一致性"""
-        resp = client.get("/")
+        resp = client.get("/health")
         assert resp.status_code == 200
         data = resp.json()
-        assert "message" in data or "status" in data or "app" in data
+        assert "status" in data
 
     def test_404_handling(self):
         """不存在的路由应返回 404"""
