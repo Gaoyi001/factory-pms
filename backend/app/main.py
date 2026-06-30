@@ -8,11 +8,43 @@ from sqlalchemy.exc import SQLAlchemyError
 from pydantic import ValidationError
 import logging
 import os
+from logging.handlers import RotatingFileHandler
 from contextlib import asynccontextmanager
 from app.core.database import engine, Base
 from app.core.config import settings
 from app.api.v1 import auth, users, projects, experiments, bom, samples, documents, departments, roles, operation_logs, inventory
 
+
+def setup_logging():
+    """配置日志输出：同时输出到控制台和文件"""
+    log_level = logging.INFO if not settings.DEBUG else logging.DEBUG
+
+    os.makedirs("logs", exist_ok=True)
+
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    formatter = logging.Formatter(log_format)
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+    root_logger.handlers.clear()
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+
+    file_handler = RotatingFileHandler(
+        "logs/app.log",
+        maxBytes=10 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8",
+    )
+    file_handler.setLevel(log_level)
+    file_handler.setFormatter(formatter)
+    root_logger.addHandler(file_handler)
+
+
+setup_logging()
 logger = logging.getLogger(__name__)
 
 
