@@ -96,38 +96,37 @@ class TestProjectTasks:
     """项目任务测试"""
 
     def test_create_task(self, client, admin_token):
+        """测试创建任务 - project_id 从路径参数获取，请求体不应包含"""
         headers = {"Authorization": f"Bearer {admin_token}"}
         create_resp = client.post("/api/v1/projects/create", json={
             "name": f"任务项目_{int(time.time())}",
-            "code": f"PT-{int(time.time())}",
             "status": "active",
         }, headers=headers)
         project_id = create_resp.json()["data"]["id"]
 
+        # 不带 project_id 的请求（正确方式）
         response = client.post(f"/api/v1/projects/{project_id}/tasks", json={
             "title": f"测试任务_{int(time.time())}",
             "description": "任务描述",
-            "status": "pending",
+            "status": "todo",
             "priority": 3,
-            "project_id": project_id,
         }, headers=headers)
         assert response.status_code == 200
         data = response.json()["data"]
         assert "id" in data
+        assert data["project_id"] == project_id  # 验证 project_id 正确关联
 
     def test_list_tasks(self, client, admin_token):
         headers = {"Authorization": f"Bearer {admin_token}"}
         create_resp = client.post("/api/v1/projects/create", json={
             "name": f"任务列表项目_{int(time.time())}",
-            "code": f"PTL-{int(time.time())}",
             "status": "active",
         }, headers=headers)
         project_id = create_resp.json()["data"]["id"]
 
         client.post(f"/api/v1/projects/{project_id}/tasks", json={
             "title": f"任务1_{int(time.time())}",
-            "status": "pending",
-            "project_id": project_id,
+            "status": "todo",
         }, headers=headers)
 
         response = client.get(f"/api/v1/projects/{project_id}/tasks", headers=headers)
@@ -139,21 +138,19 @@ class TestProjectTasks:
         headers = {"Authorization": f"Bearer {admin_token}"}
         create_resp = client.post("/api/v1/projects/create", json={
             "name": f"任务更新项目_{int(time.time())}",
-            "code": f"PTU-{int(time.time())}",
             "status": "active",
         }, headers=headers)
         project_id = create_resp.json()["data"]["id"]
 
         task_resp = client.post(f"/api/v1/projects/{project_id}/tasks", json={
             "title": "待更新任务",
-            "status": "pending",
-            "project_id": project_id,
+            "status": "todo",
         }, headers=headers)
         task_id = task_resp.json()["data"]["id"]
 
         response = client.put(f"/api/v1/projects/tasks/{task_id}", json={
             "title": "已更新任务",
-            "status": "completed",
+            "status": "done",
         }, headers=headers)
         assert response.status_code == 200
 
@@ -161,15 +158,13 @@ class TestProjectTasks:
         headers = {"Authorization": f"Bearer {admin_token}"}
         create_resp = client.post("/api/v1/projects/create", json={
             "name": f"任务删除项目_{int(time.time())}",
-            "code": f"PTD-{int(time.time())}",
             "status": "active",
         }, headers=headers)
         project_id = create_resp.json()["data"]["id"]
 
         task_resp = client.post(f"/api/v1/projects/{project_id}/tasks", json={
             "title": "待删除任务",
-            "status": "pending",
-            "project_id": project_id,
+            "status": "todo",
         }, headers=headers)
         task_id = task_resp.json()["data"]["id"]
 
@@ -181,23 +176,25 @@ class TestProjectRequirements:
     """项目需求测试"""
 
     def test_create_requirement(self, client, admin_token):
+        """测试创建需求 - project_id 从路径参数获取，请求体不应包含"""
         headers = {"Authorization": f"Bearer {admin_token}"}
         create_resp = client.post("/api/v1/projects/create", json={
             "name": f"需求项目_{int(time.time())}",
-            "code": f"PR-{int(time.time())}",
             "status": "active",
         }, headers=headers)
         project_id = create_resp.json()["data"]["id"]
 
+        # 不带 project_id 的请求（正确方式）
         response = client.post(f"/api/v1/projects/{project_id}/requirements", json={
             "title": f"测试需求_{int(time.time())}",
             "description": "需求描述",
             "priority": "should",
-            "status": "pending",
+            "status": "draft",
         }, headers=headers)
         assert response.status_code == 200
         data = response.json()["data"]
         assert "id" in data
+        assert data["project_id"] == project_id  # 验证 project_id 正确关联
 
     def test_list_requirements(self, client, admin_token):
         headers = {"Authorization": f"Bearer {admin_token}"}
@@ -317,3 +314,111 @@ class TestProjectValidation:
             "priority": 0,
         }, headers=headers)
         assert response.status_code == 422
+
+    # ===== 任务创建回归测试 =====
+    def test_create_task_without_project_id_in_body(self, client, admin_token):
+        """回归测试：创建任务请求体中不应包含 project_id（从路径参数获取）"""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        create_resp = client.post("/api/v1/projects/create", json={
+            "name": f"回归任务项目_{int(time.time())}",
+            "status": "active",
+        }, headers=headers)
+        project_id = create_resp.json()["data"]["id"]
+
+        # 明确不带 project_id（正确方式）
+        response = client.post(f"/api/v1/projects/{project_id}/tasks", json={
+            "title": "回归测试任务",
+            "status": "todo",
+            "priority": 3,
+        }, headers=headers)
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["project_id"] == project_id
+
+    def test_create_task_with_minimal_fields(self, client, admin_token):
+        """回归测试：创建任务只传必填字段（title）"""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        create_resp = client.post("/api/v1/projects/create", json={
+            "name": f"最小字段任务项目_{int(time.time())}",
+            "status": "active",
+        }, headers=headers)
+        project_id = create_resp.json()["data"]["id"]
+
+        response = client.post(f"/api/v1/projects/{project_id}/tasks", json={
+            "title": "最小任务",
+        }, headers=headers)
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["title"] == "最小任务"
+        assert data["status"] == "todo"  # 默认值
+        assert data["priority"] == 3  # 默认值
+
+    def test_create_task_missing_title(self, client, admin_token):
+        """回归测试：创建任务缺少必填字段 title"""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        create_resp = client.post("/api/v1/projects/create", json={
+            "name": f"缺少标题任务项目_{int(time.time())}",
+            "status": "active",
+        }, headers=headers)
+        project_id = create_resp.json()["data"]["id"]
+
+        response = client.post(f"/api/v1/projects/{project_id}/tasks", json={
+            "status": "todo",
+            "priority": 3,
+        }, headers=headers)
+        assert response.status_code == 422  # 参数验证失败
+
+    # ===== 需求创建回归测试 =====
+    def test_create_requirement_without_project_id_in_body(self, client, admin_token):
+        """回归测试：创建需求请求体中不应包含 project_id（从路径参数获取）"""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        create_resp = client.post("/api/v1/projects/create", json={
+            "name": f"回归需求项目_{int(time.time())}",
+            "status": "active",
+        }, headers=headers)
+        project_id = create_resp.json()["data"]["id"]
+
+        # 明确不带 project_id（正确方式）
+        response = client.post(f"/api/v1/projects/{project_id}/requirements", json={
+            "title": "回归测试需求",
+            "priority": "must",
+            "status": "draft",
+        }, headers=headers)
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["project_id"] == project_id
+        assert "code" in data  # 自动生成需求编号
+
+    def test_create_requirement_with_minimal_fields(self, client, admin_token):
+        """回归测试：创建需求只传必填字段（title）"""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        create_resp = client.post("/api/v1/projects/create", json={
+            "name": f"最小字段需求项目_{int(time.time())}",
+            "status": "active",
+        }, headers=headers)
+        project_id = create_resp.json()["data"]["id"]
+
+        response = client.post(f"/api/v1/projects/{project_id}/requirements", json={
+            "title": "最小需求",
+        }, headers=headers)
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["title"] == "最小需求"
+        assert data["source"] == "internal"  # 默认值
+        assert data["priority"] == "should"  # 默认值
+        assert data["status"] == "draft"  # 默认值
+
+    def test_create_requirement_missing_title(self, client, admin_token):
+        """回归测试：创建需求缺少必填字段 title"""
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        create_resp = client.post("/api/v1/projects/create", json={
+            "name": f"缺少标题需求项目_{int(time.time())}",
+            "status": "active",
+        }, headers=headers)
+        project_id = create_resp.json()["data"]["id"]
+
+        response = client.post(f"/api/v1/projects/{project_id}/requirements", json={
+            "priority": "should",
+            "status": "draft",
+        }, headers=headers)
+        assert response.status_code == 422  # 参数验证失败
