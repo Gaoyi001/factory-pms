@@ -87,7 +87,7 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    project_id: int
+    pass
 
 
 class TaskUpdate(BaseModel):
@@ -121,7 +121,7 @@ class RequirementBase(BaseModel):
 
 
 class RequirementCreate(RequirementBase):
-    project_id: Optional[int] = None
+    pass
 
 
 class RequirementUpdate(BaseModel):
