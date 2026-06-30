@@ -191,7 +191,14 @@ def init_db():
             print("[MIGRATE] Added source_module column to documents")
         except Exception:
             db.rollback()
-            # 字段已存在则忽略
+
+        # 迁移：为 inventory_items 表添加 version 字段（乐观锁）
+        try:
+            db.execute(text("ALTER TABLE inventory_items ADD COLUMN version INTEGER DEFAULT 0 NOT NULL"))
+            db.commit()
+            print("[MIGRATE] Added version column to inventory_items")
+        except Exception:
+            db.rollback()
 
         _seed_core_data(db)
 

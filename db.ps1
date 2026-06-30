@@ -19,6 +19,11 @@
       backup   - 备份数据库文件
       pwd-reset - 重置 admin 密码
       db-size  - 查看数据库大小与各表行数
+.NOTES
+    如果遇到 PowerShell 执行策略限制，可使用以下命令运行:
+      powershell -ExecutionPolicy Bypass -File .\db.ps1 [操作]
+    或临时设置执行策略:
+      Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 .EXAMPLE
     .\db.ps1              # 打开交互式菜单
     .\db.ps1 menu         # 同上
@@ -242,7 +247,8 @@ function Invoke-Reset {
     if ($LASTEXITCODE -eq 0) {
         Write-OK "数据库重置完成"
         Write-Host ""
-        Write-Host "  默认账号: admin / admin123" -ForegroundColor Cyan
+        Write-Host "  默认账号: admin" -ForegroundColor Cyan
+        Write-Host "  密码说明: 若设置了 ADMIN_PASSWORD 环境变量则使用该值，否则自动生成随机密码（见上方输出）" -ForegroundColor Gray
     }
 }
 
